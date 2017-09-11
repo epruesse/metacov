@@ -1,6 +1,6 @@
 import click
 import logging
-import blast
+import metacov.blast
 import pysam
 import csv
 import os
