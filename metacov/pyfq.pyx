@@ -92,8 +92,12 @@ cdef class FastQFile:
 
     def __enter__(self):
         if self.filename.endswith(".gz"):
-            self.proc = Popen(["unpigz", "-c", self.filename],
-                              stdout=PIPE, shell=False)
+            try:
+                self.proc = Popen(["unpigz", "-c", self.filename],
+                                  stdout=PIPE, shell=False)
+            except FileNotFoundError:
+                self.proc = Popen(["gunzip", "-c", self.filename],
+                                  stdout=PIPE, shell=False)
             self.fstream = fdopen(self.proc.stdout.fileno(), "r")
         else:
             self.fstream = fopen(self.filename.encode("UTF-8"), "r")
