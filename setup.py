@@ -9,6 +9,7 @@ extensions = cythonize([
     Extension("metacov.pyfq", ["metacov/pyfq.pyx"])
 ])
 
+
 setup(
     name="MetaCov",
     use_scm_version=True,
@@ -16,6 +17,7 @@ setup(
     ext_modules=extensions,
     setup_requires=[
         'setuptools_scm',
+        'cython'
     ],
     tests_require=[
         'pytest'
