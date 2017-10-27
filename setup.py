@@ -4,9 +4,19 @@ from setuptools import setup, find_packages
 from Cython.Build import cythonize
 from distutils.extension import Extension
 
+def make_ext(modname, pyxfilenames):
+    import pysam
+    return Extension(
+        name=modname,
+        sources=pyxfilenames,
+        extra_link_args=pysam.get_libraries(),
+        include_dirs=pysam.get_include(),
+        define_macros=pysam.get_defines()
+    )
+
 
 extensions = cythonize([
-    Extension("metacov.pyfq", ["metacov/pyfq.pyx"])
+    make_ext("metacov.pyfq", ["metacov/pyfq.pyx"])
 ])
 
 
