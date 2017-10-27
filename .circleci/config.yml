@@ -32,7 +32,14 @@ jobs:
             - ./venv
           key: v1-dependencies-{{ checksum "requirements.txt" }}
 
-      # run tests!
+      # Install self
+      - run:
+          name: install self
+          command: |
+            . venv/bin/activate
+            pip install .
+
+      # Run tests
       - run:
           name: run tests
           command: |
