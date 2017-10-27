@@ -21,7 +21,7 @@ jobs:
           - v1-dependencies-
 
       - run:
-          name: install dependencies
+          name: Installing Dependencies
           command: |
             python3 -m venv venv
             . venv/bin/activate
@@ -34,14 +34,14 @@ jobs:
 
       # Install self
       - run:
-          name: install self
+          name: Installing Self
           command: |
             . venv/bin/activate
             pip install .
 
       # Run tests
       - run:
-          name: run tests
+          name: Running Tests
           command: |
             . venv/bin/activate
             pytest --junit-xml test-reports/report.xml -vvs
