@@ -1,0 +1,5 @@
+Click
+pysam
+pytest
+setuptools
+cython
