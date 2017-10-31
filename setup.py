@@ -16,7 +16,8 @@ def make_ext(modname, pyxfilenames):
 
 
 extensions = cythonize([
-    make_ext("metacov.pyfq", ["metacov/pyfq.pyx"])
+    make_ext("metacov.pyfq", ["metacov/pyfq.pyx"]),
+    make_ext("metacov.scan", ["metacov/scan.pyx"])
 ])
 
 
