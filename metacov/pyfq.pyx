@@ -18,6 +18,15 @@ from pysam.libchtslib cimport BAM_FREAD1, BAM_FREAD2, BAM_FPAIRED
 # T->3
 # rest -> 4
 
+try:
+    FileNotFoundError
+    py6_FileNotFoundError = FileNotFoundError
+    py6_is_FileNotFoundError = lambda e: true
+except NameError:
+    py6_FileNotFoundError = IOError
+    import errno
+    py6_is_FileNotFoundError = lambda e: e.errno == errno.ENOENT
+
 cdef uint8_t *iupac_to_nt4_table = [
     4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, # 0
     4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, # 16
@@ -95,9 +104,12 @@ cdef class FastQFile:
             try:
                 self.proc = Popen(["unpigz", "-c", self.filename],
                                   stdout=PIPE, shell=False)
-            except FileNotFoundError:
-                self.proc = Popen(["gunzip", "-c", self.filename],
-                                  stdout=PIPE, shell=False)
+            except py6_FileNotFoundError as e:
+                if py6_is_FileNotFoundError(e):
+                    self.proc = Popen(["gunzip", "-c", self.filename],
+                                      stdout=PIPE, shell=False)
+                else:
+                    raise e
             self.fstream = fdopen(self.proc.stdout.fileno(), "r")
         else:
             self.fstream = fopen(self.filename.encode("UTF-8"), "r")
