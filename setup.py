@@ -6,11 +6,12 @@ from distutils.extension import Extension
 
 def make_ext(modname, pyxfilenames):
     import pysam
+    import numpy
     return Extension(
         name=modname,
         sources=pyxfilenames,
         extra_link_args=pysam.get_libraries(),
-        include_dirs=pysam.get_include(),
+        include_dirs=pysam.get_include() + [numpy.get_include()],
         define_macros=pysam.get_defines()
     )
 
