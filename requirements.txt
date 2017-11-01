@@ -3,3 +3,4 @@ pysam
 pytest
 setuptools
 cython
+numpy
