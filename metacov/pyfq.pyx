@@ -21,7 +21,7 @@ from pysam.libchtslib cimport BAM_FREAD1, BAM_FREAD2, BAM_FPAIRED
 try:
     FileNotFoundError
     py6_FileNotFoundError = FileNotFoundError
-    py6_is_FileNotFoundError = lambda e: true
+    py6_is_FileNotFoundError = lambda e: True
 except NameError:
     py6_FileNotFoundError = IOError
     import errno
