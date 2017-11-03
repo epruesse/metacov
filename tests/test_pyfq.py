@@ -1,7 +1,8 @@
 import os
-import pytest
 
 from metacov.pyfq import FastQFile, FastQFilePair
+
+import pytest
 
 path = os.path.join(os.path.dirname(__file__), 'data')
 fq1 = os.path.join(path, 'ecoli_1K_1.fq.gz')
@@ -21,13 +22,12 @@ fq2 = os.path.join(path, 'ecoli_1K_2.fq.gz')
          [0, 0, 0, 69, 91, 104, 146, 144, 237, 318, 947],
          [44313, 44983, 43960, 42643, 2056]
          ),
-        (FastQFilePair(fq1,fq2),
+        (FastQFilePair(fq1, fq2),
          831,
          [0, 0, 0, 116, 179, 206, 280, 278, 468, 638, 1947],
          [88756, 90453, 88623, 86438, 4112]
          ),
-    ]
-)
+    ])
 def test_FastQFile(fqfile, exp_size, exp_lengths, exp_base_freq):
     with fqfile as infile:
         assert infile.size == exp_size
