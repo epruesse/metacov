@@ -8,7 +8,7 @@ from libc.errno cimport errno
 
 from subprocess import Popen, PIPE, check_output
 from fcntl import fcntl, F_SETFL, F_GETFL
-import os, re
+import os, re, sys
 
 from pysam.libchtslib cimport BAM_FREAD1, BAM_FREAD2, BAM_FPAIRED
 
@@ -18,14 +18,14 @@ from pysam.libchtslib cimport BAM_FREAD1, BAM_FREAD2, BAM_FPAIRED
 # T->3
 # rest -> 4
 
-try:
-    FileNotFoundError
+if sys.version_info[0] > 2:
     py6_FileNotFoundError = FileNotFoundError
     py6_is_FileNotFoundError = lambda e: True
-except NameError:
+else:
     py6_FileNotFoundError = IOError
     import errno
     py6_is_FileNotFoundError = lambda e: e.errno == errno.ENOENT
+
 
 cdef uint8_t *iupac_to_nt4_table = [
     4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, # 0
