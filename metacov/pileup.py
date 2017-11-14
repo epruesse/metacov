@@ -55,16 +55,18 @@ def experimental(bam, k_cor, ref, start, end):
         nreads = 0
         i = 0
         secondary = 0
+        improper = 0
         x={}
 
         for read in bam.fetch(ref, start, end):
             # skip but count secondary reads
             if read.is_secondary:
-                secondary+=1
+                secondary += 1
                 continue
 
             # skip improper reads
             if not read.is_proper_pair:
+                improper += 1
                 continue
 
             if read.query_name in x:
@@ -108,7 +110,7 @@ def experimental(bam, k_cor, ref, start, end):
         #rpkm /= length / 1000 * tot_reads / 1000000
         #rpkm_cor /= length / 1000 * tot_reads / 1000000
 
-        if nreads == 0: return
+        allreads = secondary+nreads+improper
 
         return {
             'cov':   np.mean(cov),
@@ -117,6 +119,7 @@ def experimental(bam, k_cor, ref, start, end):
             'denc':  round(np.mean(cor),3),
             'cov2':  round(np.mean(cov2)),
             'cf':    round(sum(cor)/sum(starts),3),
-            'ambig': round(secondary/(secondary+nreads),3),
+            'ambig': round(secondary/(allreads),3) if allreads>0 else 0,
+            'improper': round(improper/(allreads),3) if allreads>0 else 0,
             'nzef':  round(nzef,3)
         }
