@@ -116,11 +116,11 @@ def pileup(bamfile, regionfile_name, coveragefile, kmer_histogram):
     help=""
 )
 @click.option(
-    "--out-basehist", "-b", type=click.File("w"),
+    "--out-basehist", "-b", type=click.File("w", lazy=False),
     help=""
 )
 @click.option(
-    "--out-kmerhist", "-o", type=click.File("w")
+    "--out-kmerhist", "-o", type=click.File("w", lazy=False)
 )
 @click.option(
     "-k", type=int, default=7,
