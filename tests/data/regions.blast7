@@ -1,0 +1,9 @@
+# TBLASTN 2.5.0+
+# Query: demo
+# Database: reference
+# Fields: subject acc., s. start, s. end
+# 4 hits found
+ref1	1	425
+ref2	1	575
+ref2	1	300
+ref2	301	575
