@@ -1,14 +1,15 @@
-import click
-import logging
-import pysam
 import csv
-import os
-from io import open
+import logging
+from collections import namedtuple
 
+import click
+
+from metacov import blast
 from metacov import pileup as _pileup
 from metacov import scan as _scan
-from metacov import blast
 from metacov.pyfq import FastQFile, FastQFilePair
+
+import pysam
 
 
 logging.basicConfig(
@@ -19,6 +20,58 @@ logging.basicConfig(
 
 log = logging.getLogger(__name__)
 
+Region = namedtuple("Region", ["qacc", "sacc", "sstart", "send"])
+
+
+def get_regions_from_blast7(regionfile):
+    """Yields Region tuples from BLAST file"""
+    for hit in blast.reader(regionfile):
+        yield hit
+
+
+def get_regions_from_csv(regionfile):
+    """Yields Region tuples from CSV file
+
+    The column containing the contig name must be 'sacc' or 'sequence_id'.
+    The column containing the start offset must be 'sstart' or 'start'.
+    The column containing the end offset must be 'end' or 'send'.
+    """
+    csv_reader = csv.reader(regionfile)
+    columns = next(csv_reader)
+
+    # rename columns if needed, aliasing
+    # sequence_id -> sacc
+    # start -> sstart
+    # end -> send
+    if 'sacc' not in columns:
+        if 'sequence_id' in columns:
+            columns[columns.index('sequence_id')] = 'sacc'
+        else:
+            raise ValueError("can't find sequence_id/sacc in csv")
+
+    if 'sstart' not in columns:
+        if 'start' in columns:
+            columns[columns.index('start')] = 'sstart'
+        else:
+            raise ValueError("can't find sstart/start in csv")
+
+    if 'send' not in columns:
+        if 'end' in columns:
+            columns[columns.index('end')] = 'send'
+        else:
+            raise ValueError("can't find send/end in csv")
+
+    for line in csv_reader:
+        yield Region(line)
+
+
+def get_regions_from_bam(bamfile):
+    """Yields Region tuples directly from BAM file
+    """
+    for n, (rlen, rname) in enumerate(zip(bamfile.lengths,
+                                          bamfile.references)):
+        yield Region(n, rname, 0, rlen)
+
 
 @click.group()
 def main():
@@ -28,29 +81,49 @@ def main():
 
 
 @main.command()
-@click.argument('bamfile', type=click.File('rb'))
-@click.argument('regionfile_name')  #, type=click.File('r'))
-@click.argument('coveragefile', type=click.File('w'))
 @click.option(
-    '--kmer-histogram', '-k', type=click.File('r')
+    '--bamfile', '-b', type=click.File('rb'), required=True,
+    help="Input BAM file. Must be sorted and indexed."
 )
-def pileup(bamfile, regionfile_name, coveragefile, kmer_histogram):
+@click.option(
+    '--regionfile-blast7', '-rb', type=click.File('r'),
+    help="Input Region file in BLAST7 format"
+)
+@click.option(
+    '--regionfile-csv', '-rc', type=click.File('r'),
+    help="Input Region file in CSV format"
+)
+@click.option(
+    '--kmer-histogram', '-k', type=click.File('r'),
+    help="Kmer Histogram produced with metacov scan"
+)
+@click.option(
+    '--outfile', '-o', type=click.File('w'), default="-",
+    help="Output CSV (default STDOUT)"
+)
+def pileup(bamfile, regionfile_blast7, regionfile_csv, kmer_histogram, outfile):
     """
-    Compute coverage depths
-
-    \b
-    Arguments:
-      BAMFILE      Input BAM file. Must be sorted and indexed
-      REGIONFILE  Input Region file. Can be one of: BLAST 7
+    Metacov -- Calculate abundance estimates over metagenome regions
     """
-    regionfile = open(regionfile_name, "r")
-    log.info("Gathering coverages for regions in \"{}\""
-             "".format(regionfile.name))
-    blastreader = blast.reader(regionfile)
 
-    log.info("Processing BAM file \"{}\"".format(bamfile.name))
+    # check params
+    if regionfile_blast7 and regionfile_csv:
+        raise click.BadParameter(
+            "Only one of regionfile-blast7 and regionfile-csv may be specified"
+        )
+
+    # open bamfile
     bam = pysam.AlignmentFile(bamfile.name)
 
+    # get region iterator
+    if regionfile_blast7:
+        regions = get_regions_from_blast7(regionfile_blast7)
+    elif regionfile_csv:
+        regions = get_regions_from_csv(regionfile_csv)
+    else:
+        regions = get_regions_from_bam(bam)
+
+    # dump stats
     try:
         log.info("Number of reads:\n"
                  "  total:    {total}\n"
@@ -64,6 +137,7 @@ def pileup(bamfile, regionfile_name, coveragefile, kmer_histogram):
     except AttributeError:
         log.error("BAM file not indexed!?")
 
+    # only first word of chr name is meaningful
     name2ref = {word.split()[0]: word
                 for word in bam.references}
 
@@ -73,19 +147,16 @@ def pileup(bamfile, regionfile_name, coveragefile, kmer_histogram):
 
     writer = None
 
-    regionfile_size = os.path.getsize(regionfile.name)
     with click.progressbar(
-            # length=os.path.getsize(regionfile.name),
             length=0,
-            label="Calculating coverages") as bar:
-        for hit in blastreader:
+            label="Calculating coverages"):  # as bar:
+        for hit in regions:
             # translate hit name, in case the bam file contains
             # multi-word references
             ref = name2ref[hit.sacc]
 
             # sort the start/end (blast uses end<start for reverse strand)
-            start, end = sorted((hit.sstart, hit.send))
-            length = end-start
+            start, end = sorted((int(hit.sstart), int(hit.send)))
 
             result = _pileup.classic(bam, ref, start, end)
 
@@ -94,8 +165,9 @@ def pileup(bamfile, regionfile_name, coveragefile, kmer_histogram):
                                                    ref, start, end))
 
             if writer is None:
-                fieldnames = ['sacc', 'start', 'end'] + sorted(list(result.keys()))
-                writer = csv.DictWriter(coveragefile, fieldnames=fieldnames)
+                fieldnames = ['sacc', 'start', 'end']
+                fieldnames += sorted(list(result.keys()))
+                writer = csv.DictWriter(outfile, fieldnames=fieldnames)
                 writer.writeheader()
 
             result.update({

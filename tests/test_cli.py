@@ -18,20 +18,31 @@ regions_blast = os.path.join(path, 'regions.blast7')
 def test_scan(tmpdir, infile):
     with tmpdir.as_cwd():
         result = runner.invoke(scan, infile + ["-o", "out1.csv", "-b", "out2.csv"])
-        assert result.exit_code == 0, "exit code = "+result.exit_code+" \n===\n" + result.output + "\n==="
+        assert result.exit_code == 0, "exit code = "+str(result.exit_code)+" \n===\n" + result.output + "\n==="
 
 
 def test_pileup(tmpdir):
     with tmpdir.as_cwd():
-        result = runner.invoke(pileup, [bam, regions_blast, "out.csv"])
+        result = runner.invoke(pileup, ["-b", bam,
+                                        "-rb", regions_blast,
+                                        "-o", "out.csv"])
         assert result.exit_code == 0, "\n===\n" + result.output + "\n==="
+
+
+def test_pileup2(tmpdir):
+    with tmpdir.as_cwd():
+        result = runner.invoke(pileup, ["-b", bam,
+                                        "-o", "out.csv"])
+        assert result.exit_code == 0, "\n===\n" + result.output + "\n==="
+
 
 def test_pileup_histogram(tmpdir):
     with tmpdir.as_cwd():
         result = runner.invoke(scan, [bam, "-o", "out1.csv"])
         assert result.exit_code == 0, "\n===\n" + result.output + "\n==="
 
-        result = runner.invoke(pileup, [bam, regions_blast,
+        result = runner.invoke(pileup, ["-b", bam,
+                                        "-rb", regions_blast,
                                         "-k", "out1.csv",
-                                        "out2.csv"])
+                                        "-o", "out2.csv"])
         assert result.exit_code == 0, "\n===\n" + result.output + "\n==="
