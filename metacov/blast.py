@@ -58,6 +58,7 @@ class fmt7_parser(blast_parser):
     def __init__(self, fileobj):
         self.fileobj = fileobj
         self.fields = None
+        self.hit = 0
         if not "BLAST" in fileobj.readline():
             raise ValueError("not a BLAST7 formatted file")
 
@@ -74,8 +75,10 @@ class fmt7_parser(blast_parser):
                 self.Hit = namedtuple("BlastHit", self.fields)
             elif line.startswith(self.QUERY):
                 self.query = line[len(self.QUERY):].strip()
+                self.hit = 0
             elif line.startswith(self.DATABASE):
                 self.query = line[len(self.DATABASE):].strip()
+                self.hit = 0
             elif line.strip().endswith(self.HITSFOUND):
                 self.hits = int(line.split()[1])
                 self.hit = 0
