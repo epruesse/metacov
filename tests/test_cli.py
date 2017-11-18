@@ -55,4 +55,4 @@ def test_pileup_histogram(tmpdir):
                                         "-rb", data.regions_blast,
                                         "-k", "out1.csv",
                                         "-o", "out2.csv"])
-        assert result.exit_code == 0, "\n===\n" + result.output + "\n==="
+        check_click_result(result)
