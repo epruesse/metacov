@@ -43,7 +43,8 @@ setup(
     install_requires=[
         'Click',
         'pysam',
-        'numpy'
+        'numpy',
+        'pandas'
     ],
     entry_points='''
         [console_scripts]

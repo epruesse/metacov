@@ -1,8 +1,7 @@
-import pysam
 import numpy as np
-import csv
-import click
-from array import array
+
+import pandas as pd
+
 
 def classic(bam, ref, start, end):
     length = end - start
@@ -25,24 +24,12 @@ def classic(bam, ref, start, end):
 
 
 def load_kmerhist(f):
-    r = csv.reader(f)
-    head = next(r)
-    col_dir = head.index("R")
-    col_map = head.index("Mapped")
-    k_correct = [{},{}]
-
-    with click.progressbar(r, length=4**7 * 4, label="Loading kmerhist") as rp:
-        for row in rp:
-            if row[col_map] != "Mapped":
-                continue
-            if row[0][0] == 'N':
-                continue
-            dr = 0 if row[col_dir] == "R1" else 1
-            norm = np.mean(array('i',(int(i) for i in row[2:col_map])))
-            k_correct[dr][row[0]] = int(row[1]) / norm
-            #k_correct[dr][row[0]] = (int(row[1])+int(row[2])) / norm /2
-
-    return k_correct
+    df = pd.read_csv(f)
+    df.drop(df[(df.Mapped == "Unmapped") | (df.kmer == "N"*7)].index,
+            inplace=True)
+    df.set_index('kmer', inplace=True)
+    cor = df[df.columns[0]] / df[df.columns[1:]].mean(axis=1)
+    return [cor[df.R == r].to_dict() for r in ("R1", "R2")]
 
 
 def experimental(bam, k_cor, ref, start, end):
