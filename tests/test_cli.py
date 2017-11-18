@@ -10,6 +10,16 @@ import data
 
 runner = CliRunner()
 
+def check_click_result(result):
+    if result.exception or result.exit_code != 0:
+        print("Output: ", result.output)
+    if result.exception:
+        print("Exception raised by command: ", result.exception)
+        print("Trackeback: ", result.exc_info)
+    assert not result.exception
+    assert result.exit_code == 0
+
+
 
 @pytest.mark.parametrize(
     'infile',
@@ -18,7 +28,7 @@ runner = CliRunner()
 def test_scan(tmpdir, infile):
     with tmpdir.as_cwd():
         result = runner.invoke(scan, infile + ["-o", "out1.csv", "-b", "out2.csv"])
-        assert result.exit_code == 0, "exit code = "+str(result.exit_code)+" \n===\n" + result.output + "\n==="
+        check_click_result(result)
 
 
 def test_pileup(tmpdir):
