@@ -4,7 +4,7 @@ from cpython.array cimport array
 
 cdef class FastQFile(object):
    cdef:
-      str filename
+      public str filename
       object proc
       FILE *fstream
       int max_linelen
@@ -25,7 +25,7 @@ cdef class FastQFile(object):
 
 cdef class FastQFilePair(FastQFile):
    cdef:
-      FastQFile  read1, read2
+      public FastQFile  read1, read2
       int flags1, flags2
       int cur
 
