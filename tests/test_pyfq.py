@@ -43,3 +43,43 @@ def test_FastQFile(fqfile, exp_size, exp_lengths, exp_base_freq):
                 base_freq[base] += 1
         assert exp_base_freq == base_freq
         assert exp_lengths == lengths
+
+
+def test_FastQWriter(tmpdir):
+    with tmpdir.as_cwd():
+        n1 = 0
+        with FastQFile(data.fq1) as infile, \
+             FastQWriter("out.fq.gz") as outfile:
+            for read in infile:
+                outfile.write(read)
+                n1 = n1 +1
+        n2 = 0
+        with FastQFile("out.fq.gz") as infile1, \
+             FastQFile(data.fq1) as infile2:
+            for read1, read2 in zip(infile1, infile2):
+                assert read1.rlen == read2.rlen
+                assert read1.seq == read2.seq
+                n2 = n2 + 1
+        assert n1 == n2, "n1 != n2 ({} != {})".format(n1, n2)
+        assert n2 == 2056
+
+
+def notest_FastQWriter2(tmpdir):
+    fqfile = AlignmentFile(data.bam)
+    fqwriter = FastQWriter("out.fq.gz")
+    with tmpdir.as_cwd():
+        n1 = 0
+        with AlignmentFile(data.bam) as infile, \
+             fqwriter as outfile:
+            for read in infile:
+                outfile.write(read)
+                n1 = n1 +1
+        n2 = 0
+        with AlignmentFile(data.bam) as infile1, \
+             FastQFile("out.fq.gz") as infile2:
+            for read1, read2 in zip(infile1, infile2):
+                assert read1.rlen == read2.rlen
+                assert read1.seq == read2.seq
+                print(read1.seq)
+                n2 = n2 + 1
+        assert n1 == n2, "n1 != n2 ({} != {})".format(n1, n2)
