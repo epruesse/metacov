@@ -34,6 +34,8 @@ def load_kmerhist(f):
 
 def experimental(bam, k_cor, ref, start, end):
         length = end-start
+        if length == 0:
+            raise Exception("Length must be > 0")
         cov = np.zeros(length)
         cov2 = np.zeros(length)
         cov_cor = np.zeros(length)
@@ -67,10 +69,14 @@ def experimental(bam, k_cor, ref, start, end):
 
             # if not read.reference_end: continue
 
+            readno = 0 if read.is_read1 else 1
+            kmer = read.query_alignment_sequence[0:7]
             try:
-                rcor = k_cor[0 if read.is_read1 else 1][
-                    read.query_alignment_sequence[0:7]]
+                rcor = k_cor[readno][kmer]
             except:
+                rcor = 1
+            if rcor == 0:
+                print("RCOR is ZERO: {} {}".format(["R1", "R2"][readno], kmer))
                 rcor = 1
 
             if read.is_reverse:
@@ -92,7 +98,7 @@ def experimental(bam, k_cor, ref, start, end):
                 # rpkm_cor += 1/rcor
 
         nz = sum([1 for n in starts if n == 0])
-        nz_e = length * (1-1 / length) ** nreads
+        nz_e = length * (1 - 1/length)**nreads
         nzef = nz / nz_e
 
         # rpkm /= length / 1000 * tot_reads / 1000000

@@ -11,12 +11,10 @@ import data
 runner = CliRunner()
 
 def check_click_result(result):
+    from traceback import format_exception
     if result.exception or result.exit_code != 0:
         print("Output: ", result.output)
-    if result.exception:
-        print("Exception raised by command: ", result.exception)
-        print("Trackeback: ", result.exc_info)
-    assert not result.exception
+    assert not result.exception, format_exception(*result.exc_info)
     assert result.exit_code == 0
 
 
