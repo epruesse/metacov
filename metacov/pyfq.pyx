@@ -105,8 +105,8 @@ cdef class FastQFile:
             self.fstream = fdopen(self.proc.stdout.fileno(), "r")
         else:
             self.fstream = fopen(self.filename.encode("UTF-8"), "r")
-            if not self.fstream:
-                raise OSError(errno, "Failed to open", self.filename)
+        if not self.fstream:
+            raise OSError(errno, "Failed to open", self.filename)
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
@@ -179,6 +179,7 @@ cdef class FastQFile:
         for i in range(self.len[1]):
             self.rseq[i] = iupac_to_nt4(self.buf[1][i])
         return self.rseq
+
 
     cdef public int get_len(self) nogil:
         """Get the length of the current read"""
