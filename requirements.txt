@@ -4,3 +4,4 @@ pytest
 setuptools
 cython
 numpy
+pandas
