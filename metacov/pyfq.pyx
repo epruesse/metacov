@@ -1,3 +1,4 @@
+# cython: c_string_type=unicode, c_string_encoding=ascii
 cimport cython
 
 from cpython.array cimport array, clone, resize
@@ -135,6 +136,10 @@ cdef class FastQFile:
         return [self.rseq[i] for i in range(self.rlen)]
 
     @property
+    def char_seq(self):
+        return self.buf[1][:self.len[1]]
+
+    @property
     def pos(self):
         """Position in file in kb"""
         return long(self._pos / 1024)
@@ -229,6 +234,12 @@ cdef class FastQFilePair(FastQFile):
             return self.read2.seq
         else:
             return self.read1.seq
+    @property
+    def char_seq(self):
+        if self.cur > 0:
+            return self.read2.char_seq
+        else:
+            return self.read1.char_seq
 
     @property
     def pos(self):
