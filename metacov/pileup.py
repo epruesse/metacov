@@ -17,9 +17,9 @@ def classic(bam, ref, start, end):
         'min': int(np.amin(columns)),
         'max': int(np.amax(columns)),
         'med': int(np.median(columns)),
-        'std': round(np.std(columns),2),
-        'avg': round(np.mean(columns),2),
-        'q23': round(np.mean(sorted(columns)[length//4:length-length//4]),2),
+        'std': round(np.std(columns), 2),
+        'avg': round(np.mean(columns), 2),
+        'q23': round(np.mean(sorted(columns)[length//4:length-length//4]), 2),
         'sum': int(np.sum(columns))
     }
 
