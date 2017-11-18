@@ -38,12 +38,12 @@ def experimental(bam, k_cor, ref, start, end):
         cov2 = np.zeros(length)
         cov_cor = np.zeros(length)
         cor = np.zeros(length)
-        starts=np.zeros(length)
+        starts = np.zeros(length)
         nreads = 0
         i = 0
         secondary = 0
         improper = 0
-        x={}
+        x = {}
 
         for read in bam.fetch(ref, start, end):
             # skip but count secondary reads
@@ -65,10 +65,11 @@ def experimental(bam, k_cor, ref, start, end):
             else:
                 x[read.query_name] = read
 
-            #if not read.reference_end: continue
+            # if not read.reference_end: continue
 
             try:
-                rcor = k_cor[0 if read.is_read1 else 1][read.query_alignment_sequence[0:7]]
+                rcor = k_cor[0 if read.is_read1 else 1][
+                    read.query_alignment_sequence[0:7]]
             except:
                 rcor = 1
 
@@ -79,34 +80,34 @@ def experimental(bam, k_cor, ref, start, end):
                 rstart = read.reference_start - start
                 rend = rstart + read.reference_length
 
-            for i in range(max(0, rstart), min(length,rend)):
+            for i in range(max(0, rstart), min(length, rend)):
                 cov[i] += 1
                 cov_cor[i] += (1/rcor)
 
-            if rstart>=0 and rstart<length:
+            if rstart >= 0 and rstart < length:
                 cor[rstart] = 1/rcor
                 starts[rstart] = 1
                 nreads += 1
-                #rpkm += 1
-                #rpkm_cor += 1/rcor
+                # rpkm += 1
+                # rpkm_cor += 1/rcor
 
         nz = sum([1 for n in starts if n == 0])
         nz_e = length * (1-1 / length) ** nreads
         nzef = nz / nz_e
 
-        #rpkm /= length / 1000 * tot_reads / 1000000
-        #rpkm_cor /= length / 1000 * tot_reads / 1000000
+        # rpkm /= length / 1000 * tot_reads / 1000000
+        # rpkm_cor /= length / 1000 * tot_reads / 1000000
 
         allreads = secondary+nreads+improper
 
         return {
             'cov':   np.mean(cov),
             'covc':  np.mean(cov_cor),
-            'den':   round(np.mean(starts),3),
-            'denc':  round(np.mean(cor),3),
+            'den':   round(np.mean(starts), 3),
+            'denc':  round(np.mean(cor), 3),
             'cov2':  round(np.mean(cov2)),
-            'cf':    round(sum(cor)/sum(starts),3),
-            'ambig': round(secondary/(allreads),3) if allreads>0 else 0,
-            'improper': round(improper/(allreads),3) if allreads>0 else 0,
-            'nzef':  round(nzef,3)
+            'cf':    round(sum(cor)/sum(starts), 3),
+            'ambig': round(secondary/(allreads), 3) if allreads > 0 else 0,
+            'improper': round(improper/(allreads), 3) if allreads > 0 else 0,
+            'nzef':  round(nzef, 3)
         }
