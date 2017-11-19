@@ -3,7 +3,6 @@ import logging
 
 import click
 
-from metacov import blast
 from metacov import pileup as _pileup
 from metacov import scan as _scan
 from metacov.pyfq import FastQFile, FastQFilePair
@@ -24,34 +23,26 @@ log = logging.getLogger(__name__)
 @click.group()
 def main():
     """
-    Metacov -- Calculate abundance estimates over metagenome regions
+    MetaCov estimates abundance values from the stacking depth of
+    reads mapped to a reference.
     """
 
 
 @main.command()
-@click.option(
-    '--bamfile', '-b', type=click.File('rb'), required=True,
-    help="Input BAM file. Must be sorted and indexed."
-)
-@click.option(
-    '--regionfile-blast7', '-rb', type=click.File('r'),
-    help="Input Region file in BLAST7 format"
-)
-@click.option(
-    '--regionfile-csv', '-rc', type=click.File('r'),
-    help="Input Region file in CSV format"
-)
-@click.option(
-    '--kmer-histogram', '-k', type=click.File('r'),
-    help="Kmer Histogram produced with metacov scan"
-)
-@click.option(
-    '--outfile', '-o', type=click.File('w'), default="-",
-    help="Output CSV (default STDOUT)"
-)
-def pileup(bamfile, regionfile_blast7, regionfile_csv, kmer_histogram, outfile):
+@click.option('--bamfile', '-b', type=click.File('rb'), required=True,
+              help="Input BAM file. Must be sorted and indexed.")
+@click.option('--regionfile-blast7', '-rb', type=click.File('r'),
+              help="Input Region file in BLAST7 format")
+@click.option('--regionfile-csv', '-rc', type=click.File('r'),
+              help="Input Region file in CSV format")
+@click.option('--kmer-histogram', '-k', type=click.File('r'),
+              help="Kmer Histogram produced with metacov scan")
+@click.option('--outfile', '-o', type=click.File('w'), default="-",
+              help="Output CSV (default STDOUT)")
+def pileup(bamfile, regionfile_blast7, regionfile_csv,
+           kmer_histogram, outfile):
     """
-    Metacov -- Calculate abundance estimates over metagenome regions
+    Compute fold coverage values
     """
 
     # open bamfile
@@ -73,22 +64,12 @@ def pileup(bamfile, regionfile_blast7, regionfile_csv, kmer_histogram, outfile):
     except AttributeError:
         log.error("BAM file not indexed!?")
 
-    # only first word of chr name is meaningful
-    name2ref = {word.split()[0]: word
-                for word in bam.references}
-
-    k_cor = None
-    if kmer_histogram is not None:
-        k_cor = _pileup.load_kmerhist(kmer_histogram)
-
+    name2ref = {word.split()[0]: word for word in bam.references}
+    k_cor = _pileup.load_kmerhist(kmer_histogram) if kmer_histogram else None
     writer = None
 
-    with click.progressbar(
-            length=0,
-            label="Calculating coverages"):  # as bar:
+    with click.progressbar(length=0, label="Calculating coverages"):  # as bar:
         for hit in regions:
-            # translate hit name, in case the bam file contains
-            # multi-word references
             ref = name2ref[hit.sacc]
 
             # sort the start/end (blast uses end<start for reverse strand)
@@ -116,38 +97,26 @@ def pileup(bamfile, regionfile_blast7, regionfile_csv, kmer_histogram, outfile):
 
 
 @main.command()
+@click.option("--readfile-type", "-t", type=click.Choice(['bam', 'fq']),
+              help="")
+@click.option("--out-basehist", "-b", type=click.File("w", lazy=False),
+              help="")
+@click.option("--out-kmerhist", "-o", type=click.File("w", lazy=False))
+@click.option("-k", type=int, default=7,
+              help="Length of k-mer")
+@click.option("--step", "-s", type=int, default=7,
+              help="")
+@click.option("--offset", "-O", type=int, default=0,
+              help="")
+@click.option("--number", "-n", type=int, default=8,
+              help="")
 @click.argument(
-    "readfile", nargs=-1, required=True
-)  # , type=click.File("r"))
-@click.option(
-    "--readfile-type", "-t", type=click.Choice(['bam', 'fq']),
-    help=""
-)
-@click.option(
-    "--out-basehist", "-b", type=click.File("w", lazy=False),
-    help=""
-)
-@click.option(
-    "--out-kmerhist", "-o", type=click.File("w", lazy=False)
-)
-@click.option(
-    "-k", type=int, default=7,
-    help="Length of k-mer"
-)
-@click.option(
-    "--step", "-s", type=int, default=7,
-    help=""
-)
-@click.option(
-    "--offset", "-O", type=int, default=0,
-    help=""
-)
-@click.option(
-    "--number", "-n", type=int, default=8,
-    help=""
-)
+    "readfile", nargs=-1, required=True)
 def scan(readfile, readfile_type, out_basehist, out_kmerhist,
          k, number, step, offset):
+    """
+    Gather read statistics
+    """
     # Try to guess readfile type if none specified
     if not readfile_type:
         for ext, ft in {'.bam': 'bam',
@@ -208,7 +177,7 @@ def scan(readfile, readfile_type, out_basehist, out_kmerhist,
             lastpos = infile.pos
         update_func = update_bar
     else:
-        raise Exception("Internal error: Unknown readfile type")
+        raise Exception("Internal error: Unknown readfile type?!")
 
     counters = []
     if out_basehist:
