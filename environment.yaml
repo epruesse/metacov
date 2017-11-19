@@ -1,5 +1,6 @@
 name: metacov
 channels:
+ - bioconda
  - conda-forge
 dependencies:
  - python =3.*
@@ -7,5 +8,7 @@ dependencies:
  - numpy
  - pandas
  - pysam
- - pip:
-   - git+https://github.com/epruesse/metacov.git
+ - art
+ - cython
+ - gcc
+ - pytest
