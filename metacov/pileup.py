@@ -112,6 +112,8 @@ def experimental(bam, k_cor, fasta, ref, start, end):
                     )
                 except KeyError:
                     wnf += 1
+                except ZeroDivisionError:
+                    wnf += 1
                 del x[read.query_name]
             else:
                 x[read.query_name] = read
