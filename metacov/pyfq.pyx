@@ -2,7 +2,7 @@
 cimport cython
 
 from cpython.array cimport array, clone, resize
-from libc.stdio cimport fopen, fdopen, fclose, fwrite, getline, FILE, perror
+from libc.stdio cimport fopen, fdopen, fclose, fwrite, getline, FILE, perror, setbuf
 from libc.stdlib cimport malloc, free, atoi
 from libc.stdint cimport uint8_t, uint64_t
 from libc.errno cimport errno
@@ -110,6 +110,7 @@ cdef class FastQFile:
             self.fstream = fopen(self.filename.encode("UTF-8"), "r")
         if not self.fstream:
             raise OSError(errno, "Failed to open", self.filename)
+        setbuf(self.fstream, <char*>malloc(8*1024))
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
