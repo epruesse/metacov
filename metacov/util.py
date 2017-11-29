@@ -43,30 +43,22 @@ def get_regions_from_csv(regionfile):
     csv_reader = csv.reader(regionfile)
     columns = next(csv_reader)
 
-    # rename columns if needed, aliasing
-    # sequence_id -> sacc
-    # start -> sstart
-    # end -> send
-    if 'sacc' not in columns:
-        if 'sequence_id' in columns:
-            columns[columns.index('sequence_id')] = 'sacc'
-        else:
-            raise ValueError("can't find sequence_id/sacc in csv")
+    colnums = []
+    for names in (('sacc', 'sequence_id'),
+                  ('sstart', 'start'),
+                  ('send', 'end', 'stop')):
+        col = None
+        for name in names:
+            if name in columns:
+                col = columns.index(name)
+                break
+        if col is None:
+            raise ValueError("Region file must have a column with a name in {}"
+                             "".format(names))
+        colnums.append(col)
 
-    if 'sstart' not in columns:
-        if 'start' in columns:
-            columns[columns.index('start')] = 'sstart'
-        else:
-            raise ValueError("can't find sstart/start in csv")
-
-    if 'send' not in columns:
-        if 'end' in columns:
-            columns[columns.index('end')] = 'send'
-        else:
-            raise ValueError("can't find send/end in csv")
-
-    for line in csv_reader:
-        yield Region(line)
+    for row in csv_reader:
+        yield Region("", row[colnums[0]], row[colnums[1]], row[colnums[2]])
 
 
 def get_regions_from_bam(bamfile):
