@@ -1,6 +1,6 @@
 import os
 import subprocess as sp
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 from tempfile import TemporaryDirectory
 
 from metacov.pyfq import FastQFilePair
@@ -9,9 +9,10 @@ from metacov.pyfq import FastQFilePair
 @contextmanager
 def generate_reads(genome_fn, model, readlen, fraglen, fragsd,
                    seed=1234, nf=5):
-    if sp.call(["command", "-V", "art_illumina"]) != 0:
+    if sp.call(["command", "-V", "art_illumina"], stdout=sp.DEVNULL) != 0:
         raise Exception("Command not found: art_illumina")
-    with TemporaryDirectory() as tmpdir:
+    with ExitStack() as stack:
+        tmpdir = stack.enter_context(TemporaryDirectory())
         outfq1_fn = os.path.join(tmpdir, "out1.fq")
         outfq2_fn = os.path.join(tmpdir, "out2.fq")
         infa_fn = os.path.join(tmpdir, "in.fasta")
@@ -30,7 +31,7 @@ def generate_reads(genome_fn, model, readlen, fraglen, fragsd,
         os.mkfifo(outfq1_fn)
         os.mkfifo(outfq2_fn)
 
-        with sp.Popen([
+        stack.enter_context(sp.Popen([
                     "art_illumina",
                     "--seqSys", model,
                     "-nf", str(nf),
@@ -43,6 +44,7 @@ def generate_reads(genome_fn, model, readlen, fraglen, fragsd,
                     "--out", os.path.join(tmpdir, "out"),
                     "--paired",
                     "--rndSeed", str(seed)
-        ], shell=False, stdout=sp.DEVNULL, stderr=sp.DEVNULL):
-            with FastQFilePair(outfq1_fn, outfq2_fn) as fqfp:
-                yield (genome_len, fqfp)
+        ], shell=False, stdout=sp.DEVNULL, stderr=sp.DEVNULL))
+
+        fqfp = stack.enter_context(FastQFilePair(outfq1_fn, outfq2_fn))
+        yield (genome_len, fqfp)
