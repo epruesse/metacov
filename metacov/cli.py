@@ -1,15 +1,19 @@
 import csv
 import logging
+from collections import OrderedDict
 
 import click
 
 from metacov import pileup as _pileup
 from metacov import scan as _scan
-from metacov.pyfq import FastQFile, FastQFilePair
 from metacov import util
+from metacov.pyfq import FastQFile, FastQFilePair, FastQWriter
+
+import numpy as np
 
 import pysam
 
+import sys
 
 logging.basicConfig(
     level=logging.INFO,
@@ -209,3 +213,131 @@ def scan(readfile, readfile_type, out_basehist, out_kmerhist,
         out = csv.writer(out_kmerhist)
         out.writerows(counters.get_rows(n))
         n = n + 1
+
+
+
+@main.command()
+@click.option('--khist', '-k', type=click.File('r'), metavar="FILE",
+              help="Match distribution of reads to statistics gathered "
+                   "with `metacov scan`.")
+@click.option('--proportions', '-p',
+              help="Specify the proportions in which each genome should "
+              "occur.")
+@click.option("--out", "-o", "fwd_outfn", required=True, metavar="FILE",
+              help="Name of output forward reads fastq file.")
+@click.option("--out2", "-o2", "rev_outfn", required=True, metavar="FILE",
+              help="Name of output reverse reads fastq file.")
+@click.option("--num-reads", "-n", type=click.INT,
+              help="Number of reads to sample")
+@click.option("--rndSeed", "-rs", type=click.INT, default=1234,
+              help="Random seed")
+@click.option("--seqSys", "-ss",
+              type=click.Choice(["GA1", "GA2", "HS10", "HS20", "HS25", "HSXn",
+                                 "HSXt", "MinS", "MSv1", "MSv3", "NS50"]),
+              default="HS20",
+              help="Name of Illumina sequencing system")
+@click.option("--len", "-l", "rlen", type=click.INT, default=100,
+              help="Read length")
+@click.option("--mflen", "-m", type=click.INT, default=450,
+              help="Mean insert size")
+@click.option("--sdev", "-s", type=click.INT, default=150,
+              help="Stddev of insert size")
+@click.argument("genomes", nargs=-1, required=True,
+                metavar="FILE [FILE...]")
+def simulate(khist, proportions, fwd_outfn, rev_outfn,
+             num_reads, rndseed, seqsys, rlen, mflen, sdev, genomes):
+    """
+    Pseudo-Randomly select reads from input file(s).
+
+    Input read files may be in SAM, BAM or (gzipped) FastQ format
+    (.sam, .bam, .fq, .fastq, .fq.gz or .fastq.gz).
+
+    If a reverse read output filename is provided, input is assumed to be
+    paired reads given either as sam/bam file(s) or pairs of FastQ files.
+    """
+
+    np.random.seed(rndseed)
+    if proportions:
+        proportions = [float(x) for x in proportions.split(",")]
+        if len(proportions) != len(genomes):
+            raise click.BadParameter(
+                "List of proportions must be of equal length as list of"
+                " genomes ({} != {})."
+                "".format(len(proportions), len(genomes)),
+                param_hint="-p")
+    else:
+        proportions = [1] * len(genomes)
+
+    from metacov.simulate import generate_reads
+    from contextlib import ExitStack
+
+    def select_genome(proportions):
+        proportions = np.array(proportions)
+        proportions = proportions / np.sum(proportions)
+        while True:
+            vals = np.random.choice(len(proportions), size=255, p=proportions)
+            for n in vals:
+                yield n
+
+    with ExitStack() as stack:
+        outfq1 = stack.enter_context(FastQWriter(fwd_outfn))
+        outfq2 = stack.enter_context(FastQWriter(rev_outfn))
+
+        genome_sizes = []
+        read_generators = []
+
+        with click.progressbar(genomes, label="Launching ART") as bar:
+            for genome in bar:
+                size, readgen = stack.enter_context(
+                    generate_reads(genome, seqsys, rlen, mflen, sdev, rndseed)
+                )
+                genome_sizes.append(size)
+                read_generators.append(readgen)
+
+        choose_genome = select_genome([x*y for x, y in zip(genome_sizes,
+                                                           proportions)])
+
+        if khist is not None:
+            k_cor = _pileup.load_kmerhist(khist)
+            for r in (0, 1):
+                pmax = max(k_cor[r].values())
+                k_cor[r] = {k: k_cor[r][k]/pmax for k in k_cor[r]}
+
+        readno = 0
+        used = 0
+
+        bar = stack.enter_context(click.progressbar(
+            length=num_reads, label="Generating Reads"))
+
+        while True:
+            used += 1
+            genome_no = next(choose_genome)
+            try:
+                read = next(next(read_generators[genome_no]))
+            except StopIteration:
+                click.echo("Failed genome", genome_no, genomes[genome_no])
+                click.echo("Produced {}/{} reads".format(readno, num_reads))
+                break
+
+            if khist:
+                try:
+                    k = (k_cor[0][read.read1.char_seq[:7]] *
+                         k_cor[1][read.read2.char_seq[:7]])
+                except KeyError:
+                    # no match - usually means ambiguous base,
+                    # skip this read (for simplicity reasons)
+                    continue
+
+                if np.random.sample() > k:
+                    continue
+
+            outfq1.write(read.read1)
+            outfq2.write(read.read2)
+
+            readno += 1
+            bar.update(1)
+            if readno >= num_reads:
+                break
+
+    click.echo("Used {} of {} reads (factor {})"
+               "".format(used, readno, used/readno))
