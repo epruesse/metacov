@@ -44,7 +44,8 @@ setup(
         'Click',
         'pysam',
         'numpy',
-        'pandas'
+        'pandas',
+        'scipy'
     ],
     entry_points='''
         [console_scripts]

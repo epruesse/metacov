@@ -35,6 +35,7 @@ def main():
 @main.command()
 @click.option('--bamfile', '-b', type=click.File('rb'), required=True,
               help="Input BAM file. Must be sorted and indexed.")
+@click.option('--reference-fasta', '-f', type=click.File('rb'))
 @click.option('--regionfile-blast7', '-rb', type=click.File('r'),
               help="Input Region file in BLAST7 format")
 @click.option('--regionfile-csv', '-rc', type=click.File('r'),
@@ -43,7 +44,7 @@ def main():
               help="Kmer Histogram produced with metacov scan")
 @click.option('--outfile', '-o', type=click.File('w'), default="-",
               help="Output CSV (default STDOUT)")
-def pileup(bamfile, regionfile_blast7, regionfile_csv,
+def pileup(bamfile, reference_fasta, regionfile_blast7, regionfile_csv,
            kmer_histogram, outfile):
     """
     Compute fold coverage values
@@ -52,6 +53,10 @@ def pileup(bamfile, regionfile_blast7, regionfile_csv,
     # open bamfile
     bam = pysam.AlignmentFile(bamfile.name)
 
+    # open reference
+    fasta = pysam.FastaFile(reference_fasta.name) if reference_fasta else None
+
+    # get region iterator
     regions = util.make_region_iterator(regionfile_blast7, regionfile_csv, bam)
 
     # dump stats
@@ -72,7 +77,7 @@ def pileup(bamfile, regionfile_blast7, regionfile_csv,
     k_cor = _pileup.load_kmerhist(kmer_histogram) if kmer_histogram else None
     writer = None
 
-    with click.progressbar(length=0, label="Calculating coverages"):  # as bar:
+    with click.progressbar(file=sys.stderr, length=0, label="Calculating coverages"):  # as bar:
         for hit in regions:
             ref = name2ref[hit.sacc]
 
@@ -82,7 +87,7 @@ def pileup(bamfile, regionfile_blast7, regionfile_csv,
             result = _pileup.classic(bam, ref, start, end)
 
             if k_cor is not None:
-                result.update(_pileup.experimental(bam, k_cor,
+                result.update(_pileup.experimental(bam, k_cor, fasta,
                                                    ref, start, end))
 
             if writer is None:

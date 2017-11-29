@@ -5,3 +5,4 @@ setuptools
 cython
 numpy
 pandas
+scipy
