@@ -145,7 +145,7 @@ cdef class AlignmentFileIterator(ReadIterator):
         cdef char* seq
         with gil:
             res = self.row.cnext()
-        if self.tid != self.get_tid():
+        if self.fasta is not None and self.tid != self.get_tid():
             self.tid = self.get_tid()
             length = faidx_seq_len(self.fasta.fastafile, self.get_rname())
             if length > 0:
