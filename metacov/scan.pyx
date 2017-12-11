@@ -12,6 +12,7 @@ from pysam.libchtslib cimport *
 from pysam.libcalignmentfile cimport AlignmentFile, IteratorRowRegion, IteratorRowAll
 from pysam.libcalignedsegment cimport pysam_bam_get_cigar, pysam_bam_get_seq, \
     pysam_bam_get_qual, PileupColumn
+from pysam.libcfaidx cimport FastaFile
 
 from copy import copy
 from itertools import chain, islice
