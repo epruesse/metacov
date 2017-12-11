@@ -414,15 +414,9 @@ cdef class KmerHist(ReadProcessor):
             #yield [kmer_base2_to_ascii(i, self.K)] + list(self.counts[i])
             yield [kmer_base2_to_ascii(i, self.K)] + list(self._counts_data[i])
 
-
-
             
-## scanning algos
-
-
-
 cpdef long scan_reads(
-    object infile, object counters,
+    object infile, object fasta, object counters,
     int progress_interval=10000000, object progress_cb=None,
     maxreads=0):
     cdef:
@@ -430,7 +424,7 @@ cpdef long scan_reads(
         ReadProcessor proc
 
     if isinstance(infile, AlignmentFile):
-        it = AlignmentFileIterator(infile)
+        it = AlignmentFileIterator(infile, fasta)
     elif isinstance(infile, FastQFile):
         it = FastQFileIterator(infile)
     else:
@@ -443,7 +437,6 @@ cpdef long scan_reads(
     else:
         raise Exception("mah")
         
-
     return scan(it, proc, progress_interval, progress_cb, maxreads)
 
 
@@ -469,7 +462,7 @@ cpdef long scan(
         rlen = it.get_len()
         rseq = it.get_seq()
         rflags = it.get_flags()
-        
+
         if rlen > max_readlen:
             max_readlen = rlen
             processor.set_max_readlen(max_readlen)

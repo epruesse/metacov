@@ -123,10 +123,10 @@ def pileup(bamfile, reference_fasta, regionfile_blast7, regionfile_csv,
               help="")
 @click.option("--number", "-n", type=int, default=8,
               help="")
-@click.argument(
-    "readfile", nargs=-1, required=True)
+@click.option('--reference-fasta', '-f', type=click.File('rb'))
+@click.argument("readfile", nargs=-1, required=True)
 def scan(readfile, readfile_type, out_basehist, out_kmerhist,
-         k, number, step, offset):
+         k, number, step, offset, reference_fasta):
     """
     Gather read statistics
     """
@@ -160,9 +160,15 @@ def scan(readfile, readfile_type, out_basehist, out_kmerhist,
             "At most two fastq files allowed (fwd and rev)"
         )
 
+    if readfile_type != 'bam' and reference_fasta:
+        raise click.UsageError(
+            "Reference fasta can only be used with mapped (bam/sam) reads"
+        )
+
     update_every = 100000
     max_reads = update_every * 10
     max_reads = 0
+    fasta = None
 
     if readfile_type == 'bam':
         infile = pysam.AlignmentFile(readfile[0])
@@ -175,6 +181,8 @@ def scan(readfile, readfile_type, out_basehist, out_kmerhist,
         def update_func(x):
             return x.update(update_every)
 
+        if reference_fasta:
+            fasta = pysam.FastaFile(reference_fasta.name)
     elif readfile_type == 'fq':
         if len(readfile) > 1:
             infile = FastQFilePair(readfile[0], readfile[1])
@@ -205,7 +213,7 @@ def scan(readfile, readfile_type, out_basehist, out_kmerhist,
                            show_pos=True) as bar:
         with infile:
             nreads = _scan.scan_reads(
-                infile, counters,
+                infile, fasta, counters,
                 update_every, lambda: update_func(bar),
                 max_reads)
         update_func(bar)
@@ -222,7 +230,6 @@ def scan(readfile, readfile_type, out_basehist, out_kmerhist,
         out = csv.writer(out_kmerhist)
         out.writerows(counters.get_rows(n))
         n = n + 1
-
 
 
 @main.command()
