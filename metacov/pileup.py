@@ -35,7 +35,7 @@ def load_kmerhist(f, k_len=7):
     return [cor[df.R == r].to_dict() for r in ("R1", "R2")]
 
 
-def experimental(bam, k_cor, fasta, ref, start, end):
+def experimental(bam, k_cor, k_len, fasta, ref, start, end):
         length = end-start
         if length == 0:
             raise Exception("Length must be > 0")
@@ -66,15 +66,14 @@ def experimental(bam, k_cor, fasta, ref, start, end):
             if k_cor:
                 cor_fwd = np.zeros(length)
                 cor_rev = np.zeros(length)
-                n = 7
-                for i in range(length - n):
+                for i in range(length - k_len):
                     try:
-                        cor_fwd[i] = k_cor[0][region[i:i+n]]
+                        cor_fwd[i] = k_cor[0][region[i:i+k_len]]
                     except KeyError:
                         cor_fwd[i] = 0
-                for i in range(-length + n - 1, 0):
+                for i in range(-length + k_len - 1, 0):
                     try:
-                        cor_rev[length + i] = k_cor[1][region[i:i-n:-1]]
+                        cor_rev[length + i] = k_cor[1][region[i:i-k_len:-1]]
                     except KeyError:
                         cor_rev[length + i] = 0
 
@@ -106,9 +105,9 @@ def experimental(bam, k_cor, fasta, ref, start, end):
                 cov2[s-1:e+1] += 1
                 try:
                     wnf += 1/(
-                        k_cor[1 if read.is_reverse else 0][read.query_alignment_sequence[0:7]]
+                        k_cor[1 if read.is_reverse else 0][read.query_alignment_sequence[0:k_len]]
                         *
-                        k_cor[1 if readb.is_reverse else 0][readb.query_alignment_sequence[0:7]]
+                        k_cor[1 if readb.is_reverse else 0][readb.query_alignment_sequence[0:k_len]]
                     )
                 except KeyError:
                     wnf += 1
@@ -121,7 +120,7 @@ def experimental(bam, k_cor, fasta, ref, start, end):
             # if not read.reference_end: continue
 
             readno = 0 if read.is_read1 else 1
-            kmer = read.query_alignment_sequence[0:7]
+            kmer = read.query_alignment_sequence[0:k_len]
             try:
                 rcor = k_cor[readno][kmer]
             except:

@@ -42,10 +42,12 @@ def main():
               help="Input Region file in CSV format")
 @click.option('--kmer-histogram', '-k', type=click.File('r'),
               help="Kmer Histogram produced with metacov scan")
+@click.option('--kmer-length', '-K', type=int, default=7,
+              help="Length of k-mer")
 @click.option('--outfile', '-o', type=click.File('w'), default="-",
               help="Output CSV (default STDOUT)")
 def pileup(bamfile, reference_fasta, regionfile_blast7, regionfile_csv,
-           kmer_histogram, outfile):
+           kmer_histogram, kmer_length, outfile):
     """
     Compute fold coverage values
     """
@@ -55,6 +57,8 @@ def pileup(bamfile, reference_fasta, regionfile_blast7, regionfile_csv,
 
     # open reference
     fasta = pysam.FastaFile(reference_fasta.name) if reference_fasta else None
+    # FIXME: If we get an OSError-fail-to-open here, it's because the file
+    #        isn't formatted to spec (varying line length)
 
     # get region iterator
     regions = util.make_region_iterator(regionfile_blast7, regionfile_csv, bam)
@@ -87,7 +91,7 @@ def pileup(bamfile, reference_fasta, regionfile_blast7, regionfile_csv,
             result = _pileup.classic(bam, ref, start, end)
 
             if k_cor is not None:
-                result.update(_pileup.experimental(bam, k_cor, fasta,
+                result.update(_pileup.experimental(bam, k_cor, kmer_length, fasta,
                                                    ref, start, end))
 
             if writer is None:
