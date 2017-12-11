@@ -9,7 +9,7 @@ from metacov.pyfq import FastQFilePair
 @contextmanager
 def generate_reads(genome_fn, model, readlen, fraglen, fragsd,
                    seed=1234, nf=5):
-    if sp.call(["command", "-V", "art_illumina"], stdout=sp.DEVNULL) != 0:
+    if sp.call(["command", "-V", "art_illumina"], stdout=sp.DEVNULL, shell=True) != 0:
         raise Exception("Command not found: art_illumina")
     with ExitStack() as stack:
         tmpdir = stack.enter_context(TemporaryDirectory())
