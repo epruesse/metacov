@@ -225,6 +225,8 @@ def scan(readfile, readfile_type, out_basehist, out_kmerhist,
 @click.option('--khist', '-k', type=click.File('r'), metavar="FILE",
               help="Match distribution of reads to statistics gathered "
                    "with `metacov scan`.")
+@click.option('--klen', '-K', type=int, default=7,
+              help="Length of k-mer")
 @click.option('--proportions', '-p',
               help="Specify the proportions in which each genome should "
               "occur.")
@@ -249,7 +251,7 @@ def scan(readfile, readfile_type, out_basehist, out_kmerhist,
               help="Stddev of insert size")
 @click.argument("genomes", nargs=-1, required=True,
                 metavar="FILE [FILE...]")
-def simulate(khist, proportions, fwd_outfn, rev_outfn,
+def simulate(khist, klen, proportions, fwd_outfn, rev_outfn,
              num_reads, rndseed, seqsys, rlen, mflen, sdev, genomes):
     """
     Pseudo-Randomly select reads from input file(s).
@@ -326,8 +328,8 @@ def simulate(khist, proportions, fwd_outfn, rev_outfn,
 
             if khist:
                 try:
-                    k = (k_cor[0][read.read1.char_seq[:7]] *
-                         k_cor[1][read.read2.char_seq[:7]])
+                    k = (k_cor[0][read.read1.char_seq[:klen]] *
+                         k_cor[1][read.read2.char_seq[:klen]])
                 except KeyError:
                     # no match - usually means ambiguous base,
                     # skip this read (for simplicity reasons)
