@@ -87,4 +87,9 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# R user project files
 .Rproj.user
+
+# Emacs tmpfiles
+*~

@@ -1,10 +1,11 @@
 from libc.stdio cimport FILE
 from libc.stdint cimport uint8_t
 from cpython.array cimport array
+from pysam.libcalignmentfile cimport AlignmentFile
 
 cdef class FastQFile(object):
    cdef:
-      str filename
+      public str filename
       object proc
       FILE *fstream
       int max_linelen
@@ -25,7 +26,7 @@ cdef class FastQFile(object):
 
 cdef class FastQFilePair(FastQFile):
    cdef:
-      FastQFile  read1, read2
+      public FastQFile  read1, read2
       int flags1, flags2
       int cur
 
@@ -33,3 +34,13 @@ cdef class FastQFilePair(FastQFile):
       public uint8_t[:] get_seq(self) nogil
       public int get_len(self) nogil
       public int get_flags(self) nogil
+
+cdef class FastQWriter(object):
+    cdef:
+        str filename
+        object proc
+        FILE *fstream
+        object file
+
+        public int write_from_FastQFile(self, FastQFile f) nogil
+        public int write_from_AlignmentFile(self, AlignmentFile f) nogil

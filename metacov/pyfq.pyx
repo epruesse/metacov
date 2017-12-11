@@ -1,7 +1,8 @@
+# cython: c_string_type=unicode, c_string_encoding=ascii
 cimport cython
 
 from cpython.array cimport array, clone, resize
-from libc.stdio cimport fopen, fdopen, fclose, getline, FILE, perror
+from libc.stdio cimport fopen, fdopen, fclose, fwrite, getline, FILE, perror, setbuf
 from libc.stdlib cimport malloc, free, atoi
 from libc.stdint cimport uint8_t, uint64_t
 from libc.errno cimport errno
@@ -11,6 +12,9 @@ from fcntl import fcntl, F_SETFL, F_GETFL
 import os, re, sys
 
 from pysam.libchtslib cimport BAM_FREAD1, BAM_FREAD2, BAM_FPAIRED
+from pysam.libcalignmentfile cimport AlignmentFile, IteratorRowRegion, IteratorRowAll
+from pysam.libcalignedsegment cimport pysam_bam_get_cigar, pysam_bam_get_seq, \
+    pysam_bam_get_qual, pysam_bam_get_qname, PileupColumn
 
 from metacov.compat import FileNotFoundError
 
@@ -104,8 +108,9 @@ cdef class FastQFile:
             self.fstream = fdopen(self.proc.stdout.fileno(), "r")
         else:
             self.fstream = fopen(self.filename.encode("UTF-8"), "r")
-            if not self.fstream:
-                raise OSError(errno, "Failed to open", self.filename)
+        if not self.fstream:
+            raise OSError(errno, "Failed to open", self.filename)
+        setbuf(self.fstream, <char*>malloc(8*1024))
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
@@ -133,6 +138,10 @@ cdef class FastQFile:
         cdef int i
         self.get_seq()
         return [self.rseq[i] for i in range(self.rlen)]
+
+    @property
+    def char_seq(self):
+        return self.buf[1][:self.len[1]]
 
     @property
     def pos(self):
@@ -174,6 +183,7 @@ cdef class FastQFile:
         for i in range(self.len[1]):
             self.rseq[i] = iupac_to_nt4(self.buf[1][i])
         return self.rseq
+
 
     cdef public int get_len(self) nogil:
         """Get the length of the current read"""
@@ -229,6 +239,12 @@ cdef class FastQFilePair(FastQFile):
             return self.read2.seq
         else:
             return self.read1.seq
+    @property
+    def char_seq(self):
+        if self.cur > 0:
+            return self.read2.char_seq
+        else:
+            return self.read1.char_seq
 
     @property
     def pos(self):
@@ -263,3 +279,74 @@ cdef class FastQFilePair(FastQFile):
             return self.flags2
         else:
             return self.flags1
+
+cdef class FastQWriter:
+    """
+    FastQ File Writer
+    """
+    def __cinit__(self):
+        self.proc = None  # for gzip process
+        self.file = None
+        self.fstream = NULL
+        self.filename = None
+
+    def __init__(self, object fileobj):
+        """
+        Arguments:
+            filename:  name of file to write to
+        """
+        if hasattr(fileobj, 'fileno'):
+            self.file = fileobj
+        else:
+            self.filename = fileobj
+
+    def __enter__(self):
+        if self.filename is not None:
+            self.file = open(self.filename, "wb")
+        if self.filename.endswith(".gz"):
+            try:
+                self.proc = Popen(["pigz", "-c"],
+                                  stdin=PIPE,
+                                  stdout=self.file,
+                                  shell=False)
+            except FileNotFoundError:
+                self.proc = Popen(["gzip", "-c"],
+                                  stdin=PIPE,
+                                  stdout=self.file,
+                                  shell=False)
+            self.fstream = fdopen(self.proc.stdin.fileno(), "wb")
+        else:
+            self.fstream = fdopen(self.file.fileno(), "wb")
+        if not self.fstream:
+            raise OSError(errno, "Failed to open", self.filename)
+
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        if self.fstream:
+            fclose(self.fstream)
+        if self.proc:
+            self.proc.wait(5)
+        if self.filename is not None:
+            try:
+                self.file.close()
+            except OSError:
+                pass
+
+    cdef public int write_from_FastQFile(self, FastQFile f) nogil:
+        cdef size_t res
+        for i in range(4):
+            res = fwrite(f.buf[i], 1, f.len[i], self.fstream)
+            if res != f.len[i]:
+                return False
+        return True
+
+    cdef public int write_from_AlignmentFile(self, AlignmentFile bam) nogil:
+        cdef int l = bam.b.core.l_qseq
+        #cdef char* name = bam_get_qname(bam.b)
+
+    def write(self, read):
+        if isinstance(read, FastQFile):
+            return self.write_from_FastQFile(read)
+        else:
+            raise Exception("writing {} not implemented".format(type(read)))

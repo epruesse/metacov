@@ -6,44 +6,35 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/python:3.6.1
+      - image: condaforge/linux-anvil
 
     working_directory: ~/repo
 
     steps:
       - checkout
 
-      # Download and cache dependencies
-      - restore_cache:
-          keys:
-          - v1-dependencies-{{ checksum "requirements.txt" }}
-          # fallback to using the latest cache if no exact match is found
-          - v1-dependencies-
-
       - run:
           name: Installing Dependencies
           command: |
-            python3 -m venv venv
-            . venv/bin/activate
-            pip install -r requirements.txt
-
-      - save_cache:
-          paths:
-            - ./venv
-          key: v1-dependencies-{{ checksum "requirements.txt" }}
+            export PATH=/opt/conda/bin:$PATH
+            conda config --add channels bioconda
+            conda env create -q -f environment.yaml
+            source activate metacov
 
       # Install self
       - run:
           name: Installing Self
           command: |
-            . venv/bin/activate
+            export PATH=/opt/conda/bin:$PATH
+            source activate metacov
             pip install .
 
       # Run tests
       - run:
           name: Running Tests
           command: |
-            . venv/bin/activate
+            export PATH=/opt/conda/bin:$PATH
+            source activate metacov
             pytest --junit-xml test-reports/report.xml -vvs
 
       - store_test_results:
