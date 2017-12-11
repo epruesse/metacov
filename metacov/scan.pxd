@@ -3,6 +3,27 @@ import numpy as np
 cimport numpy as np
 from cpython.array cimport array
 
+cdef class ReadIterator:
+    """
+    Abstract Base Class for iterating over reads
+    """
+    cdef:
+        int max_readlen
+        array rseq_arr
+        uint8_t[:] rseq
+
+        void set_max_readlen(self, int)
+        int cnext(self) nogil
+        uint8_t[:] get_seq(self) nogil
+        uint8_t[:] get_ref(self) nogil
+        int get_len(self) nogil
+        int get_flags(self) nogil
+        int get_pos(self) nogil
+        int get_isize(self) nogil
+        char* get_name(self) nogil
+        int get_tid(self) nogil
+        char* get_rname(self) nogil
+
 
 cdef class ReadProcessor(object):
     """Base class for read stats accumulators"""

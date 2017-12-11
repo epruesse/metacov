@@ -44,6 +44,183 @@ cpdef str kmer_base2_to_ascii(uint32_t kmer, int l):
     return "".join([chr(nt4_to_ascii(kmer>>n & 3)) for n in range(0, 2*l, 2) ])
 
 
+## Iterating over reads
+
+cdef class ReadIterator:
+    """
+    Abstract Base Class for iterating over reads
+    """
+    def __cinit__(self):
+        self.max_readlen = 50
+        self.rseq_arr = clone(array('B'), self.max_readlen, False)
+        self.rseq = self.rseq_arr
+
+    cdef void set_max_readlen(self, int max_readlen):
+        self.max_readlen = max_readlen
+        resize(self.rseq_arr, max_readlen)
+        self.rseq = self.rseq_arr
+
+    cdef int cnext(self) nogil:
+        return -1
+
+    cdef uint8_t[:] get_seq(self) nogil:
+        return None
+
+    cdef uint8_t[:] get_ref(self) nogil:
+        return None
+
+    cdef int get_len(self) nogil:
+        return 0
+
+    cdef int get_flags(self) nogil:
+        return 0
+
+    cdef int get_pos(self) nogil:
+        return 0
+
+    cdef int get_isize(self) nogil:
+        return 0
+
+    cdef char* get_name(self) nogil:
+        return ""
+
+    cdef int get_tid(self) nogil:
+        return 0
+
+    cdef char* get_rname(self) nogil:
+        return ""
+
+
+cdef class AlignmentFileIterator(ReadIterator):
+    """
+    Iterates over all reads of a BAM/SAM/CRAM file
+    """
+    cdef:
+       AlignmentFile bam
+       IteratorRowAll row
+       FastaFile fasta
+       int tid
+       array curseq_data
+       uint8_t[:] curseq
+       int curseq_len
+
+    def __cinit__(self, AlignmentFile bam, FastaFile fasta):
+        # super __cinit__ called automatically
+        self.bam = bam
+        self.row = IteratorRowAll(bam)
+        self.fasta = fasta
+        self.tid = -1
+        self.curseq_data = clone(array('B'), 1, False)
+        self.curseq = self.curseq_data
+        self.curseq_len = 0
+
+    @cython.boundscheck(False)
+    cdef int cnext(self) nogil:
+        cdef int res, length
+        cdef char* seq
+        with gil:
+            res = self.row.cnext()
+        if self.tid != self.get_tid():
+            self.tid = self.get_tid()
+            length = faidx_seq_len(self.fasta.fastafile, self.get_rname())
+            if length > 0:
+                seq = faidx_fetch_seq(self.fasta.fastafile, self.get_rname(),
+                                      0, length, &length)
+                with gil:
+                    resize(self.curseq_data, length)
+                self.curseq = self.curseq_data
+                for i in range(length):
+                    self.curseq[i] = iupac_to_nt4(seq[i])
+                self.curseq_len = length
+            else:
+                self.curseq_len = 0
+
+        return res
+
+    cdef uint8_t[:] get_ref(self) nogil:
+        return self.curseq
+
+    @cython.boundscheck(False)
+    cdef uint8_t[:] get_seq(self) nogil:
+        cdef:
+           char* rqseq = bam_get_seq(self.row.b)
+           int rlen = self.row.b.core.l_qseq
+           int i
+
+        if rlen > self.max_readlen:
+            with gil:
+                self.set_max_readlen(rlen)
+
+        for i in range(rlen):
+            self.rseq[i] = nt16_to_nt4(bam_seqi(rqseq, i))
+
+        return self.rseq
+
+    cdef int get_len(self) nogil:
+        return self.row.b.core.l_qseq
+
+    cdef int get_flags(self) nogil:
+        return self.row.b.core.flag
+
+    cdef int get_isize(self) nogil:
+        return self.row.b.core.isize
+
+    cdef int get_pos(self) nogil:
+        return self.row.b.core.pos
+
+    cdef char* get_name(self) nogil:
+        return <char*>self.row.b.data
+
+    cdef int get_tid(self) nogil:
+        return self.row.b.core.tid
+
+    cdef char* get_rname(self) nogil:
+        if self.get_tid() < 0:
+            return ""
+        return self.bam.header.target_name[self.get_tid()]
+
+
+cdef class FastQFileIterator(ReadIterator):
+    """
+    Iterates over all reads of a fq/fg.gz file
+    """
+    cdef:
+        FastQFile fq
+
+    def __cinit__(self, FastQFile fq):
+        self.fq = fq
+
+    cdef int cnext(self) nogil:
+        return self.fq.cnext()
+
+    cdef uint8_t[:] get_seq(self) nogil:
+        return self.fq.get_seq()
+
+    cdef uint8_t[:] get_ref(self) nogil:
+        return None
+
+    cdef int get_len(self) nogil:
+        return self.fq.get_len()
+
+    cdef int get_flags(self) nogil:
+        return self.fq.get_flags()
+
+    cdef int get_isize(self) nogil:
+        return -1
+
+    cdef int get_pos(self) nogil:
+        return -1
+
+    cdef char* get_name(self) nogil:
+        return ""
+
+    cdef int get_tid(self) nogil:
+        return -1
+
+    cdef char* get_rname(self) nogil:
+        return ""
+
+
 ## Counter Classes
 
 cdef class ReadProcessor:
@@ -204,94 +381,14 @@ cdef class KmerHist(ReadProcessor):
         yield ["kmer"] + ["n{}".format(i) for i in range(self.NK)]
         yield ['N'*self.K ] + list(self.counts[4**self.K])
         for i in range(4**self.K):
-            yield [kmer_base2_to_ascii(i, self.K)] + list(self.counts[i])
+            #yield [kmer_base2_to_ascii(i, self.K)] + list(self.counts[i])
+            yield [kmer_base2_to_ascii(i, self.K)] + list(self._counts_data[i])
 
 
 
             
 ## scanning algos
 
-cdef class ReadIterator:
-    cdef:
-        int max_readlen
-        array rseq_arr
-        uint8_t[:] rseq
-    def __cinit__(self):
-        self.max_readlen = 50
-        self.rseq_arr = clone(array('B'), self.max_readlen, False)
-        self.rseq = self.rseq_arr
-
-    cdef void set_max_readlen(self, int max_readlen):
-        self.max_readlen = max_readlen
-        resize(self.rseq_arr, max_readlen)
-        self.rseq = self.rseq_arr
-        
-    cdef int cnext(self) nogil:
-        return -1
-    
-    cdef uint8_t[:] get_seq(self) nogil:
-        return None
-    
-    cdef int get_len(self) nogil:
-        return 0
-
-    cdef int get_flags(self) nogil:
-        return 0
-
-
-cdef class AlignmentFileIterator(ReadIterator):
-    cdef:
-       AlignmentFile bam
-       IteratorRowAll row
-
-    def __cinit__(self, AlignmentFile bam):
-        self.bam = bam
-        self.row = IteratorRowAll(bam)
-
-    cdef int cnext(self) nogil:
-        with gil:
-            return self.row.cnext()
-
-    @cython.boundscheck(False)
-    cdef uint8_t[:] get_seq(self) nogil:
-        cdef:
-           char* rqseq = bam_get_seq(self.row.b)
-           int rlen = self.row.b.core.l_qseq
-           int i
-
-        if rlen > self.max_readlen:
-            with gil:
-                self.set_max_readlen(rlen)
-           
-        for i in range(rlen):
-            self.rseq[i] = nt16_to_nt4(bam_seqi(rqseq, i))
-
-        return self.rseq
-
-    cdef int get_len(self) nogil:
-        return self.row.b.core.l_qseq
-
-    cdef int get_flags(self) nogil:
-        return self.row.b.core.flag
-
-
-cdef class FastQFileIterator(ReadIterator):
-    cdef:
-        FastQFile fq
-    def __cinit__(self, FastQFile fq):
-        self.fq = fq
-
-    cdef int cnext(self) nogil:
-        return self.fq.cnext()
-
-    cdef uint8_t[:] get_seq(self) nogil:
-        return self.fq.get_seq()
-
-    cdef int get_len(self) nogil:
-        return self.fq.get_len()
-
-    cdef int get_flags(self) nogil:
-        return self.fq.get_flags()
 
 
 cpdef long scan_reads(
