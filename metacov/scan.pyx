@@ -253,7 +253,8 @@ cdef class ReadProcessor:
    cpdef public void set_max_readlen(self, int rlen):
        pass
    
-   cdef public void process_read(self, int rlen, uint8_t[:] read, int flags) nogil:
+   cdef public void process_read(self, int rlen, uint8_t[:] read, int flags,
+                                 ReadIterator it) nogil:
        with gil: print("ArgHHH")
 
 
@@ -271,16 +272,17 @@ cdef class ReadProcessorList(ReadProcessor):
        for processor in self.processors:
            (<ReadProcessor>processor).set_max_readlen(rlen)
 
-   cdef public void process_read(self, int rlen, uint8_t[:] read, int flags) nogil:
+   cdef public void process_read(self, int rlen, uint8_t[:] read, int flags,
+                                 ReadIterator it) nogil:
        with gil:
            for processor in self.processors:
-               (<ReadProcessor>processor).process_read(rlen, read, flags)
+               (<ReadProcessor>processor).process_read(rlen, read, flags, it)
 
    def get_rows(self, int i):
        return self.processors[i].get_rows()
 
 cdef class Flag:
-    def __init__(self, int flag, str name_true, str name_false, str name_col):
+    def __cinit__(self, int flag, str name_true, str name_false, str name_col):
         self.flag = flag
         self.name_true = name_true
         self.name_false = name_false
@@ -320,7 +322,8 @@ cdef class ByFlag(ReadProcessorList):
             
 
     @cython.boundscheck(False)
-    cdef public void process_read(self, int rlen, uint8_t[:] read, int flags) nogil:
+    cdef public void process_read(self, int rlen, uint8_t[:] read, int flags,
+                                  ReadIterator it) nogil:
         cdef:
             int flag
             int i
@@ -332,9 +335,9 @@ cdef class ByFlag(ReadProcessorList):
                 if (<Flag>self.flags[i]).flag & flags:
                     n += 1
         
-            (<ReadProcessor>self.processors[n]).process_read(rlen, read, flags)
+            (<ReadProcessor>self.processors[n]).process_read(rlen, read, flags, it)
             
-            
+
                
 cdef class BaseHist(ReadProcessor):
     def __cinit__(self):
@@ -349,7 +352,8 @@ cdef class BaseHist(ReadProcessor):
         self._counts = self._counts_data
 
     @cython.boundscheck(False)
-    cdef public void process_read(self, int rlen, uint8_t[:] read, int flags) nogil:
+    cdef public void process_read(self, int rlen, uint8_t[:] read, int flags,
+                                  ReadIterator it) nogil:
         cdef int i
         for i in range(rlen):
             self._counts[i, read[i]] += 1
@@ -378,7 +382,8 @@ cdef class KmerHist(ReadProcessor):
         return KmerHist(self.K, self.NK, self.STEP, self.OFFSET)
 
     @cython.boundscheck(False)
-    cdef public void process_read(self, int rlen, uint8_t[:] read, int flags) nogil:
+    cdef public void process_read(self, int rlen, uint8_t[:] read, int flags,
+                                  ReadIterator it) nogil:
         cdef:
             int i, j, k
             uint8_t c
@@ -469,7 +474,7 @@ cpdef long scan(
             max_readlen = rlen
             processor.set_max_readlen(max_readlen)
 
-        processor.process_read(rlen, rseq, rflags)
+        processor.process_read(rlen, rseq, rflags, it)
 
         if maxreads and readno >= maxreads:
             break

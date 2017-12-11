@@ -30,7 +30,8 @@ cdef class ReadProcessor(object):
 
     cpdef void set_max_readlen(self, int rlen)
     cdef:
-        public void process_read(self, int rlen, uint8_t[:] read, int flags) nogil
+        public void process_read(self, int rlen, uint8_t[:] read, int flags,
+                                 ReadIterator it) nogil
 
 
 cdef class ReadProcessorList(ReadProcessor):
@@ -40,7 +41,8 @@ cdef class ReadProcessorList(ReadProcessor):
 
     cpdef void set_max_readlen(self, int rlen)
     cdef:
-        public void process_read(self, int rlen, uint8_t[:] read, int flags) nogil
+        public void process_read(self, int rlen, uint8_t[:] read, int flags,
+                                 ReadIterator it) nogil
 
 
 cdef class Flag:
@@ -60,14 +62,16 @@ cdef class ByFlag(ReadProcessorList):
 
     cpdef void set_max_readlen(self, int rlen)
     cdef:
-        public void process_read(self, int rlen, uint8_t[:] read, int flags) nogil
+        public void process_read(self, int rlen, uint8_t[:] read, int flags,
+                                 ReadIterator it) nogil
 
 
 cdef class BaseHist(ReadProcessor):
     cdef:
         np.ndarray _counts_data
         uint32_t[:,:] _counts
-        public void process_read(self, int rlen, uint8_t[:] read, int flags) nogil
+        public void process_read(self, int rlen, uint8_t[:] read, int flags,
+                                 ReadIterator it) nogil
 
     cpdef void set_max_readlen(self, int rlen)
 
@@ -81,7 +85,8 @@ cdef class KmerHist(ReadProcessor):
         int OFFSET
         int STEP
 
-        public void process_read(self, int rlen, uint8_t[:] read, int flags) nogil
+        public void process_read(self, int rlen, uint8_t[:] read, int flags,
+                                 ReadIterator it) nogil
 
     cpdef void set_max_readlen(self, int rlen)
 
