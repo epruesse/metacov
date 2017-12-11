@@ -26,9 +26,9 @@ def classic(bam, ref, start, end):
     }
 
 
-def load_kmerhist(f):
+def load_kmerhist(f, k_len=7):
     df = pd.read_csv(f)
-    df.drop(df[(df.Mapped == "Unmapped") | (df.kmer == "N"*7)].index,
+    df.drop(df[(df.Mapped == "Unmapped") | (df.kmer == "N"*k_len)].index,
             inplace=True)
     df.set_index('kmer', inplace=True)
     cor = df[df.columns[0]] / df[df.columns[1:]].mean(axis=1)
