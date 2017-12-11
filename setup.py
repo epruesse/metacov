@@ -16,7 +16,7 @@ class BuildExt(build_ext):
 
         import pysam
         self.include_dirs.extend(pysam.get_include())
-        self.libraries.extend(pysam.get_libraries())
+        self.link_objects = pysam.get_libraries()
 
 
 extensions = cythonize([
