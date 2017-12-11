@@ -85,8 +85,8 @@ def experimental(bam, k_cor, fasta, ref, start, end):
                 ecor = np.inner(cor_fwd, cor_revsum) / length
         else:
             region = None
-            gc = "na"
-            ecor = "na"
+            gc = -1
+            ecor = -1
 
         for read in bam.fetch(ref, start, end):
             # skip but count secondary reads
