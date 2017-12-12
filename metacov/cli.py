@@ -168,6 +168,9 @@ def scan(readfile, readfile_type, out_basehist, out_kmerhist,
         )
 
     update_every = 100000
+    if max_reads and max_reads > 0 and max_reads/100 < update_every:
+        update_every = int(max_reads/100)
+
     fasta = None
 
     if readfile_type == 'bam':
@@ -177,6 +180,8 @@ def scan(readfile, readfile_type, out_basehist, out_kmerhist,
                      infile.mapped, infile.unmapped,
                      infile.mapped + infile.unmapped))
         length = infile.mapped + infile.unmapped
+        if max_reads and max_reads > 0 and max_reads < length:
+            length = max_reads
 
         def update_func(x):
             return x.update(update_every)
