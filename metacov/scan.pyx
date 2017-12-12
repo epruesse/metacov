@@ -68,6 +68,53 @@ cpdef str kmer_base2_to_ascii(uint32_t kmer, int l):
     cdef int n
     return "".join([chr(nt4_to_ascii(kmer>>n & 3)) for n in range(0, 2*l, 2) ])
 
+## Flags
+
+cdef class Flag:
+    def __cinit__(self, int flag, str name_true, str name_false, str name_col):
+        self.flag = flag
+        self.name_true = name_true
+        self.name_false = name_false
+        self.name_col = name_col
+
+
+cdef:
+    # 0x01 template having multiple segments
+    Flag _FLAG_PAIRED = Flag(BAM_FPAIRED, "Paired", "Unpaired", "Paired")
+    # 0x02 each segment properly aligned
+    Flag _FLAG_PROPER_PAIR = Flag(BAM_FPROPER_PAIR, "Paired", "Unpaired", "ProperPair")
+    # 0x04 segment unmapped
+    Flag _FLAG_MAPPED = Flag(BAM_FUNMAP, "Unmapped", "Mapped", "Mapped")
+    # 0x08 next segment unmapped
+    Flag _FLAG_MMAPPED = Flag(BAM_FMUNMAP, "Unmapped", "Mapped", "MateMapped")
+    # 0x10 read mapped to reverse strand
+    Flag _FLAG_REVERSE = Flag(BAM_FREVERSE, "Reverse", "Forward", "Readdir")
+    # 0x20 next segment mapped to reverse strand
+    Flag _FLAG_MREVERSE = Flag(BAM_FMREVERSE, "Reverse", "Forward", "MateReaddir")
+    # 0x40 first segment in template (read1)
+    Flag _FLAG_READ1 = Flag(BAM_FREAD1, "R1", "", "IsRead1")
+    # 0x80 last segment in template (read2)
+    Flag _FLAG_READDIR = Flag(BAM_FREAD2, "R2", "R1", "R")
+    # 0x100 secondary alignment
+    Flag _FLAG_SECONDARY = Flag(BAM_FSECONDARY, "Secondary", "Primary", "Alignment")
+    # 0x200 qc failure
+    Flag _FLAG_QCFAIL = Flag(BAM_FQCFAIL, "Fail", "Pass", "QC")
+    # 0x400 optical or PCR duplicate
+    Flag _FLAG_DUP = Flag(BAM_FDUP, "Duplicate", "Singleton", "Duplicate")
+
+
+FLAG_PAIRED = _FLAG_PAIRED
+FLAG_PROPER_PAIR = _FLAG_PROPER_PAIR
+FLAG_MAPPED = _FLAG_MAPPED
+FLAG_MMAPPED = _FLAG_MMAPPED
+FLAG_REVERSE = _FLAG_REVERSE
+FLAG_MREVERSE = _FLAG_MREVERSE
+FLAG_READ1 = _FLAG_READ1
+FLAG_READDIR = _FLAG_READDIR
+FLAG_SECONDARY = _FLAG_SECONDARY
+FLAG_QCFAIL = _FLAG_QCFAIL
+FLAG_DUP = _FLAG_DUP
+
 
 ## Iterating over reads
 
@@ -281,20 +328,8 @@ cdef class ReadProcessorList(ReadProcessor):
    def get_rows(self, int i):
        return self.processors[i].get_rows()
 
-cdef class Flag:
-    def __cinit__(self, int flag, str name_true, str name_false, str name_col):
-        self.flag = flag
-        self.name_true = name_true
-        self.name_false = name_false
-        self.name_col = name_col
 
-FLAG_PAIRED = Flag(BAM_FPAIRED, "Paired", "Unpaired", "Paired")
-FLAG_PROPER_PAIR = Flag(BAM_FPROPER_PAIR, "Paired", "Unpaired", "ProperPair")
-FLAG_MAPPED = Flag(BAM_FUNMAP, "Unmapped", "Mapped", "Mapped")
-FLAG_READDIR = Flag(BAM_FREAD2, "R2", "R1", "R")
-FLAG_SECONDARY = Flag(BAM_FSECONDARY, "Secondary", "Primary", "Alignment")
-FLAG_DUP = Flag(BAM_FDUP, "Duplicate", "Singleton", "Duplicate")
-               
+
 cdef class ByFlag(ReadProcessorList):
     def __init__(self, object processor, list flags):
         if isinstance(processor, list):
@@ -338,7 +373,6 @@ cdef class ByFlag(ReadProcessorList):
             (<ReadProcessor>self.processors[n]).process_read(rlen, read, flags, it)
             
 
-               
 cdef class BaseHist(ReadProcessor):
     def __cinit__(self):
         self._counts_data = np.zeros((10, 5), dtype=np.uint32)
