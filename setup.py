@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from os.path import dirname
+
 from Cython.Build import cythonize
 
 from setuptools import find_packages, setup
@@ -17,6 +19,9 @@ class BuildExt(build_ext):
         import pysam
         self.include_dirs.extend(pysam.get_include())
         self.link_objects = pysam.get_libraries()
+
+        libdirs = set((dirname(p) for p in pysam.get_libraries()))
+        self.link_objects.extend(["-Wl,-rpath", "-Wl,"+libdirs.pop()])
 
 
 extensions = cythonize([
