@@ -10,7 +10,8 @@ Welcome to MetaCov's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-
+   cli
+   api
 
 Indices and tables
 ==================
