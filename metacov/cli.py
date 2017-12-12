@@ -123,10 +123,12 @@ def pileup(bamfile, reference_fasta, regionfile_blast7, regionfile_csv,
               help="")
 @click.option("--number", "-n", type=int, default=8,
               help="")
+@click.option("--max-reads", "-m", type=int,
+              help="")
 @click.option('--reference-fasta', '-f', type=click.File('rb'))
 @click.argument("readfile", nargs=-1, required=True)
 def scan(readfile, readfile_type, out_basehist, out_kmerhist,
-         k, number, step, offset, reference_fasta):
+         k, number, step, offset, max_reads, reference_fasta):
     """
     Gather read statistics
     """
@@ -166,8 +168,6 @@ def scan(readfile, readfile_type, out_basehist, out_kmerhist,
         )
 
     update_every = 100000
-    max_reads = update_every * 10
-    max_reads = 0
     fasta = None
 
     if readfile_type == 'bam':
