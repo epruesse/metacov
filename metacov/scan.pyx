@@ -560,7 +560,13 @@ cpdef long scan_reads(
     maxreads=0):
     cdef:
         ReadIterator it
-        ReadProcessor proc
+        ReadProcessor processor
+
+        long readno = 0
+        int rlen
+        uint8_t[:] rseq
+        int rflags
+        int max_readlen = 50
 
     if isinstance(infile, AlignmentFile):
         it = AlignmentFileIterator(infile, fasta)
@@ -570,26 +576,12 @@ cpdef long scan_reads(
         raise Exception("meh")
 
     if isinstance(counters, list):
-        proc = ReadProcessorList(counters)
+        processor = ReadProcessorList(counters)
     elif isinstance(counters, ReadProcessor):
-        proc = counters
+        processor = counters
     else:
         raise Exception("mah")
         
-    return scan(it, proc, progress_interval, progress_cb, maxreads)
-
-
-cpdef long scan(
-    ReadIterator it, ReadProcessor processor,
-    int progress_interval=10000000, object progress_cb=None,
-    maxreads=0):
-    cdef:
-        long readno = 0
-        int rlen
-        uint8_t[:] rseq
-        int rflags
-        int max_readlen = 50
-
     processor.set_max_readlen(max_readlen)
 
     while it.cnext() > 0:
