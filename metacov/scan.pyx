@@ -198,6 +198,9 @@ cdef class AlignmentFileIterator(ReadIterator):
         cdef char* seq
         with gil:
             res = self.row.cnext()
+
+        # if we have fasta and are switching reference templates,
+        # load the new current sequence
         if self.fasta is not None and self.tid != self.get_tid():
             self.tid = self.get_tid()
             length = faidx_seq_len(self.fasta.fastafile, self.get_rname())
@@ -229,8 +232,13 @@ cdef class AlignmentFileIterator(ReadIterator):
             with gil:
                 self.set_max_readlen(rlen)
 
-        for i in range(rlen):
-            self.rseq[i] = nt16_to_nt4(bam_seqi(rqseq, i))
+        if self.is_reverse():
+            # undo reverse complementing of read by mapper
+            for i in range(rlen):
+                self.rseq[rlen-i-1] = nt4_comp(nt16_to_nt4(bam_seqi(rqseq, i)))
+        else:
+            for i in range(rlen):
+                self.rseq[i] = nt16_to_nt4(bam_seqi(rqseq, i))
 
         return self.rseq
 
@@ -244,7 +252,10 @@ cdef class AlignmentFileIterator(ReadIterator):
         return self.row.b.core.isize
 
     cdef int get_pos(self) nogil:
-        return self.row.b.core.pos
+        if self.get_flags() & _FLAG_REVERSE.flag == 0:
+            return self.row.b.core.pos
+        else:
+            return self.row.b.core.pos + self.row.b.core.l_qseq
 
     cdef char* get_name(self) nogil:
         return <char*>self.row.b.data
