@@ -23,6 +23,7 @@ cdef class ReadIterator:
         char* get_name(self) nogil
         int get_tid(self) nogil
         char* get_rname(self) nogil
+        int is_reverse(self) nogil
 
 
 cdef class ReadProcessor(object):

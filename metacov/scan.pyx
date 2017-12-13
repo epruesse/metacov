@@ -165,6 +165,9 @@ cdef class ReadIterator:
     cdef char* get_rname(self) nogil:
         return ""
 
+    cdef int is_reverse(self) nogil:
+        return 0
+
 
 cdef class AlignmentFileIterator(ReadIterator):
     """
@@ -254,6 +257,9 @@ cdef class AlignmentFileIterator(ReadIterator):
             return ""
         return self.bam.header.target_name[self.get_tid()]
 
+    cdef int is_reverse(self) nogil:
+        return self.row.b.core.flag & BAM_FREVERSE
+
 
 cdef class FastQFileIterator(ReadIterator):
     """
@@ -294,6 +300,9 @@ cdef class FastQFileIterator(ReadIterator):
 
     cdef char* get_rname(self) nogil:
         return ""
+
+    cdef int is_reverse(self) nogil:
+        return 0 # FIXME
 
 
 ## Counter Classes
