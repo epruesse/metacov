@@ -397,23 +397,61 @@ cdef class ByFlag(ReadProcessorList):
             
 
 cdef class BaseHist(ReadProcessor):
-    def __cinit__(self):
+    def __cinit__(self, int start_pos):
+        """
+        Computes a profile of base counts along the length of the reads
+
+        Params:
+          start_pos:  include this many bases from the reference ("left" of read)
+        """
+        self.start_pos = start_pos
         self._counts_data = np.zeros((10, 5), dtype=np.uint32)
         self._counts = self._counts_data
 
     def __copy__(self):
-        return BaseHist()
+        return BaseHist(self.start_pos)
 
     cpdef public void set_max_readlen(self, int rlen):
-        self._counts_data.resize((rlen, 5), refcheck=False)
+        self._counts_data.resize((rlen+self.start_pos, 5), refcheck=False)
         self._counts = self._counts_data
 
     @cython.boundscheck(False)
     cdef public void process_read(self, int rlen, uint8_t[:] read, int flags,
                                   ReadIterator it) nogil:
-        cdef int i
+        cdef int i, x = 0
+        cdef int pos = it.get_pos()
+        cdef uint8_t[:] ref = it.get_ref()
+        cdef int mismatch = 0
+
+        if pos < self.start_pos:
+            return
+
+        if it.is_reverse():
+            # verify match
+            for i in range(rlen):
+                if read[i] != nt4_comp(ref[pos - i - 1]):
+                    mismatch += 1
+            if mismatch * 32 > rlen:
+                return
+
+            # count in reference
+            for i in range(self.start_pos):
+                self._counts[i, nt4_comp(ref[pos - i - 1 + self.start_pos])] += 1
+        else:
+            # verify match
+            for i in range(rlen):
+                if read[i] != ref[pos + i]:
+                    mismatch += 1
+            if mismatch * 32 > rlen:
+                return
+
+            # count in reference
+            for i in range(self.start_pos):
+                self._counts[i, ref[pos + i - self.start_pos]] += 1
+
+        # count in read
         for i in range(rlen):
-            self._counts[i, read[i]] += 1
+            self._counts[i+self.start_pos, read[i]] += 1
 
     @property
     def counts(self):
@@ -423,7 +461,7 @@ cdef class BaseHist(ReadProcessor):
         cdef int i
         yield ["Pos", "A", "G", "C", "T", "N"]
         for i in range(self._counts.shape[0]):
-            yield [i+1] + list(self._counts[i])
+            yield [i-self.start_pos] + list(self._counts[i])
 
 
 cdef class KmerHist(ReadProcessor):

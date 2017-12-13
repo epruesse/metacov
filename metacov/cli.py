@@ -112,8 +112,14 @@ def pileup(bamfile, reference_fasta, regionfile_blast7, regionfile_csv,
 @main.command()
 @click.option("--readfile-type", "-t", type=click.Choice(['bam', 'fq']),
               help="")
+@click.option("--max-reads", "-m", type=int,
+              help="")
+@click.option('--reference-fasta', '-f', type=click.File('rb'))
 @click.option("--out-basehist", "-b", type=click.File("w", lazy=False),
               help="")
+@click.option('--boffset','-bo', type=int, default=0,
+              help="Include N bases prior to read start in base histogram. "
+              "Requires reference fasta file.")
 @click.option("--out-kmerhist", "-o", type=click.File("w", lazy=False))
 @click.option("-k", type=int, default=7,
               help="Length of k-mer")
@@ -123,14 +129,11 @@ def pileup(bamfile, reference_fasta, regionfile_blast7, regionfile_csv,
               help="")
 @click.option("--number", "-n", type=int, default=8,
               help="")
-@click.option("--max-reads", "-m", type=int,
-              help="")
-@click.option('--reference-fasta', '-f', type=click.File('rb'))
 @click.option('--out-mirrorhist', '-M', type=click.File('w', lazy=False))
 @click.option('--mirror-offset','-MO', type=int, default=4)
 @click.option('--mirror-length','-Ml', type=int, default=10)
 @click.argument("readfile", nargs=-1, required=True)
-def scan(readfile, readfile_type, out_basehist, out_kmerhist,
+def scan(readfile, readfile_type, out_basehist, boffset, out_kmerhist,
          k, number, step, offset, max_reads, reference_fasta,
          out_mirrorhist, mirror_offset, mirror_length):
     """
@@ -211,7 +214,7 @@ def scan(readfile, readfile_type, out_basehist, out_kmerhist,
 
     counters = []
     if out_basehist:
-        counters.append(_scan.BaseHist())
+        counters.append(_scan.BaseHist(boffset))
     if out_kmerhist:
         counters.append(_scan.KmerHist(k, number, step, offset))
     if out_mirrorhist:

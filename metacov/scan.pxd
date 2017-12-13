@@ -71,6 +71,7 @@ cdef class BaseHist(ReadProcessor):
     cdef:
         np.ndarray _counts_data
         uint32_t[:,:] _counts
+        int start_pos
         public void process_read(self, int rlen, uint8_t[:] read, int flags,
                                  ReadIterator it) nogil
 
