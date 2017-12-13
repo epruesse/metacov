@@ -173,7 +173,7 @@ def scan(readfile, readfile_type, out_basehist, out_kmerhist,
 
     update_every = 100000
     if max_reads and max_reads > 0 and max_reads/100 < update_every:
-        update_every = int(max_reads/100)
+        update_every = int(max_reads+50/100)
 
     fasta = None
 
