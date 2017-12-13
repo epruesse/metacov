@@ -91,6 +91,17 @@ cdef class KmerHist(ReadProcessor):
     cpdef void set_max_readlen(self, int rlen)
 
 
+cdef class MirrorHist(ReadProcessor):
+    cdef:
+        np.ndarray _counts_data
+        uint32_t[:,:] _counts
+        int OFFSET
+        int N
+
+        public void process_read(self, int rlen, uint8_t[:] read, int flags,
+                                 ReadIterator it) nogil
+
+
 """
   - insert size
   - length

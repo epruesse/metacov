@@ -58,6 +58,9 @@ cdef inline uint8_t iupac_to_nt4(unsigned char n) nogil:
     return iupac_to_nt4_table[n]
 
 
+cdef inline uint8_t nt4_comp(uint8_t n) nogil:
+    return 3-n + ((3-n & 4)>>2)*5
+
 ## Not Fast:
 
 cdef str bamseq2str(char* seq, int lseq):
@@ -445,10 +448,54 @@ cdef class KmerHist(ReadProcessor):
         yield ["kmer"] + ["n{}".format(i) for i in range(self.NK)]
         yield ['N'*self.K ] + list(self.counts[4**self.K])
         for i in range(4**self.K):
-            #yield [kmer_base2_to_ascii(i, self.K)] + list(self.counts[i])
             yield [kmer_base2_to_ascii(i, self.K)] + list(self._counts_data[i])
 
+
+cdef class MirrorHist(ReadProcessor):
+    def __cinit__(self, int OFFSET=4, int N=10):
+        self.OFFSET = OFFSET
+        self.N = N
+        self._counts_data = np.zeros((N+1,2), dtype=np.uint32)
+        self._counts = self._counts_data
+
+    def __copy__(self):
+        return MirrorHist(self.OFFSET, self.N)
+
+    @cython.boundscheck(False)
+    cdef public void process_read(self, int rlen, uint8_t[:] read, int flags,
+                                  ReadIterator it) nogil:
+        cdef:
+            int pos = it.get_pos() + self.OFFSET
+            uint8_t[:] ref = it.get_ref()
+            int mismatch_plain = 0
+            int mismatch_comp = 0
             
+            int i = 0
+
+        if pos < self.N - self.OFFSET:
+            return
+
+        for i in range(self.N):
+            if ref[pos + i + 1] != ref[pos - i - 1]:
+                mismatch_plain += 1
+            if ref[pos + i + 1] != nt4_comp(ref[pos - i - 1]):
+                mismatch_comp += 1
+
+        with gil:
+            self._counts[mismatch_plain,0] += 1
+            self._counts[mismatch_comp,1] += 1
+
+    @property
+    def counts(self):
+        return self._counts_data
+
+    def get_rows(self):
+        cdef int i
+        yield ["n","plain","comp"]
+        for i in range(self.N):
+            yield [i, self._counts_data[i,0], self._counts_data[i,1]]
+
+
 cpdef long scan_reads(
     object infile, object fasta, object counters,
     int progress_interval=10000000, object progress_cb=None,

@@ -126,9 +126,13 @@ def pileup(bamfile, reference_fasta, regionfile_blast7, regionfile_csv,
 @click.option("--max-reads", "-m", type=int,
               help="")
 @click.option('--reference-fasta', '-f', type=click.File('rb'))
+@click.option('--out-mirrorhist', '-M', type=click.File('w', lazy=False))
+@click.option('--mirror-offset','-MO', type=int, default=4)
+@click.option('--mirror-length','-Ml', type=int, default=10)
 @click.argument("readfile", nargs=-1, required=True)
 def scan(readfile, readfile_type, out_basehist, out_kmerhist,
-         k, number, step, offset, max_reads, reference_fasta):
+         k, number, step, offset, max_reads, reference_fasta,
+         out_mirrorhist, mirror_offset, mirror_length):
     """
     Gather read statistics
     """
@@ -210,6 +214,8 @@ def scan(readfile, readfile_type, out_basehist, out_kmerhist,
         counters.append(_scan.BaseHist())
     if out_kmerhist:
         counters.append(_scan.KmerHist(k, number, step, offset))
+    if out_mirrorhist:
+        counters.append(_scan.MirrorHist(mirror_offset, mirror_length))
 
     counters = _scan.ByFlag(counters, [_scan.FLAG_READDIR, _scan.FLAG_MAPPED])
 
@@ -233,6 +239,10 @@ def scan(readfile, readfile_type, out_basehist, out_kmerhist,
 
     if out_kmerhist:
         out = csv.writer(out_kmerhist)
+        out.writerows(counters.get_rows(n))
+
+    if out_mirrorhist:
+        out = csv.writer(out_mirrorhist)
         out.writerows(counters.get_rows(n))
         n = n + 1
 
