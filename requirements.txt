@@ -6,3 +6,4 @@ cython
 numpy
 pandas
 scipy
+sphinx_click
