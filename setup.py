@@ -27,7 +27,10 @@ class BuildExt(build_ext):
 extensions = cythonize([
     Extension("metacov.pyfq", ["metacov/pyfq.pyx"]),
     Extension("metacov.scan", ["metacov/scan.pyx"])
-])
+], compiler_directives = {
+    "embedsignature": True,
+    "binding": True}
+)
 
 
 setup(
