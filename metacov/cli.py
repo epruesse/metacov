@@ -116,6 +116,10 @@ def pileup(bamfile, reference_fasta, regionfile_blast7, regionfile_csv,
 @click.option("--max-reads", "-m",
               type=click.IntRange(1), metavar="N",
               help="Only consider the first N reads.")
+@click.option("--group-by", "-g",
+              type=click.Choice(_scan.Flags.keys()), multiple=True, metavar="FLAG",
+              help="Group output by BAM flag. May be specified multiple times. "
+              "FLAG can be one of {}".format(list(_scan.Flags.keys())))
 @click.option('--reference-fasta', '-f',
               type=click.File('rb'), metavar="FILE",
               help="Fasta file reads where mapped to. Required for boffset."
@@ -158,7 +162,7 @@ def pileup(bamfile, reference_fasta, regionfile_blast7, regionfile_csv,
 def scan(readfile, readfile_type, out_basehist, boffset, out_kmerhist,
          k, number, step, offset, max_reads, reference_fasta,
          out_mirrorhist, mirror_offset, mirror_length,
-         out_isizehist):
+         out_isizehist, group_by):
     """
     Gather read statistics
     """
@@ -245,7 +249,8 @@ def scan(readfile, readfile_type, out_basehist, boffset, out_kmerhist,
     if out_isizehist:
         counters.append(_scan.IsizeHist())
 
-    counters = _scan.ByFlag(counters, [_scan.FLAG_READDIR, _scan.FLAG_MAPPED])
+    counters = _scan.ByFlag(counters,
+                            [_scan.Flags[flag] for flag in group_by])
 
     with click.progressbar(length=length,
                            label="Scanning reads",
