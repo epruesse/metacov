@@ -110,29 +110,50 @@ def pileup(bamfile, reference_fasta, regionfile_blast7, regionfile_csv,
 
 
 @main.command()
-@click.option("--readfile-type", "-t", type=click.Choice(['bam', 'fq']),
-              help="")
-@click.option("--max-reads", "-m", type=int,
-              help="")
-@click.option('--reference-fasta', '-f', type=click.File('rb'))
-@click.option("--out-basehist", "-b", type=click.File("w", lazy=False),
-              help="")
-@click.option('--boffset','-bo', type=int, default=0,
+@click.option("--readfile-type", "-t",
+              type=click.Choice(['bam', 'fq']),
+              help="Override filename based detection of readfile type.")
+@click.option("--max-reads", "-m",
+              type=click.IntRange(1), metavar="N",
+              help="Only consider the first N reads.")
+@click.option('--reference-fasta', '-f',
+              type=click.File('rb'), metavar="FILE",
+              help="Fasta file reads where mapped to. Required for boffset."
+              " File may be bgzip'ed, but not gzip'ed.")
+@click.option("--out-basehist", "-b",
+              type=click.File("w", lazy=False), metavar="FILE",
+              help="Compute histogram of base counts by position in read.")
+@click.option('--boffset','-bo',
+              type=click.IntRange(0,200), default=0, metavar="N", show_default=True,
               help="Include N bases prior to read start in base histogram. "
               "Requires reference fasta file.")
-@click.option("--out-kmerhist", "-o", type=click.File("w", lazy=False))
-@click.option("-k", type=int, default=7,
-              help="Length of k-mer")
-@click.option("--step", "-s", type=int, default=7,
-              help="")
-@click.option("--offset", "-O", type=int, default=0,
-              help="")
-@click.option("--number", "-n", type=int, default=8,
-              help="")
-@click.option('--out-mirrorhist', '-M', type=click.File('w', lazy=False))
-@click.option('--mirror-offset','-MO', type=int, default=4)
-@click.option('--mirror-length','-Ml', type=int, default=10)
-@click.option('--out-isizehist', '-I', type=click.File('w', lazy=False))
+@click.option("--out-kmerhist", "-o",
+              type=click.File("w", lazy=False), metavar="FILE",
+              help="Compute histogram of kmers in reads")
+@click.option("-k",
+              type=click.IntRange(2,12), default=7, metavar="N", show_default=True,
+              help="Length of kmers")
+@click.option("--step", "-s",
+              type=click.IntRange(1,100), default=7, metavar="N", show_default=True,
+              help="Step between sampled kmers")
+@click.option("--offset", "-O",
+              type=click.IntRange(-100,100), default=0, metavar="N", show_default=True,
+              help="Offset of first sampled kmer")
+@click.option("--number", "-n",
+              type=click.IntRange(1,100), default=8, metavar="N", show_default=True,
+              help="Numer of sampled kmers")
+@click.option('--out-mirrorhist', '-M',
+              type=click.File('w', lazy=False), metavar="FILE",
+              help="Compute histogram of mismatches against palindrome")
+@click.option('--mirror-offset','-MO',
+              type=click.IntRange(-100,100), default=4, metavar="N", show_default=True,
+              help="Offset of palindrome center from read start")
+@click.option('--mirror-length','-Ml',
+              type=click.IntRange(1,50), default=10, metavar="N", show_default=True,
+              help="Palindrome length is 2N+1")
+@click.option('--out-isizehist', '-I',
+              type=click.File('w', lazy=False), metavar="FILE",
+              help="Compute histogram of insert sizes.")
 @click.argument("readfile", nargs=-1, required=True)
 def scan(readfile, readfile_type, out_basehist, boffset, out_kmerhist,
          k, number, step, offset, max_reads, reference_fasta,
