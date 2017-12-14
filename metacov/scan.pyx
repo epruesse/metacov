@@ -168,6 +168,9 @@ cdef class ReadIterator:
     cdef int is_reverse(self) nogil:
         return 0
 
+    cdef int is_paired(self) nogil:
+        return 0
+
 
 cdef class AlignmentFileIterator(ReadIterator):
     """
@@ -249,7 +252,10 @@ cdef class AlignmentFileIterator(ReadIterator):
         return self.row.b.core.flag
 
     cdef int get_isize(self) nogil:
-        return self.row.b.core.isize
+        if self.is_paired():
+            return self.row.b.core.isize
+        else:
+            return 0
 
     cdef int get_pos(self) nogil:
         if self.get_flags() & _FLAG_REVERSE.flag == 0:
@@ -271,6 +277,8 @@ cdef class AlignmentFileIterator(ReadIterator):
     cdef int is_reverse(self) nogil:
         return self.row.b.core.flag & BAM_FREVERSE
 
+    cdef int is_paired(self) nogil:
+        return self.row.b.core.flag & BAM_FPROPER_PAIR
 
 cdef class FastQFileIterator(ReadIterator):
     """
@@ -313,6 +321,9 @@ cdef class FastQFileIterator(ReadIterator):
         return ""
 
     cdef int is_reverse(self) nogil:
+        return 0 # FIXME
+
+    cdef int is_paired(self) nogil:
         return 0 # FIXME
 
 
@@ -552,6 +563,48 @@ cdef class MirrorHist(ReadProcessor):
         yield ["n","plain","comp"]
         for i in range(self.N):
             yield [i, self._counts_data[i,0], self._counts_data[i,1]]
+
+
+cdef class IsizeHist(ReadProcessor):
+    def __cinit__(self):
+        self._counts_data = np.zeros(128, dtype=np.uint32)
+        self._counts = self._counts_data
+        self.max_isize = 0
+
+    def __copy__(self):
+        return IsizeHist()
+
+    @cython.boundscheck(False)
+    cdef public void process_read(self, int rlen, uint8_t[:] read, int flags,
+                                  ReadIterator it) nogil:
+        cdef:
+           int isize = it.get_isize()
+           int asize = self._counts.shape[0]
+
+        if isize < 0:
+            isize = -isize
+
+        if isize > self.max_isize:
+            self.max_isize = isize
+
+        if asize <= isize:
+            while asize <= isize:
+                asize *= 2
+            with gil:
+                self._counts_data.resize(asize, refcheck=False)
+                self._counts = self._counts_data
+
+        self._counts[isize] += 1
+
+    @property
+    def counts(self):
+        return self._counts_data
+
+    def get_rows(self):
+        cdef int i
+        yield ["n","count"]
+        for i in range(self.max_isize + 1):
+            yield [i, self._counts_data[i]]
 
 
 cpdef long scan_reads(

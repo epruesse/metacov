@@ -24,6 +24,7 @@ cdef class ReadIterator:
         int get_tid(self) nogil
         char* get_rname(self) nogil
         int is_reverse(self) nogil
+        int is_paired(self) nogil
 
 
 cdef class ReadProcessor(object):
@@ -99,6 +100,15 @@ cdef class MirrorHist(ReadProcessor):
         uint32_t[:,:] _counts
         int OFFSET
         int N
+
+        public void process_read(self, int rlen, uint8_t[:] read, int flags,
+                                 ReadIterator it) nogil
+
+cdef class IsizeHist(ReadProcessor):
+    cdef:
+        np.ndarray _counts_data
+        uint32_t[:] _counts
+        uint32_t max_isize
 
         public void process_read(self, int rlen, uint8_t[:] read, int flags,
                                  ReadIterator it) nogil
